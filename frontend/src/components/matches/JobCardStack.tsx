@@ -7,7 +7,7 @@ import type { Filters } from "./FiltersDrawer";
 import { JobDetailModal } from "./JobDetailModal";
 import { useEffect } from "react";
 import { MatchesSkeleton } from "./MatchesSkeleton";
-import { track } from "@/lib/analytics";
+import { track } from "../../lib/analytics";
 
 const MOCK_JOBS: Job[] = [
   {
