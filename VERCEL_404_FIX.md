@@ -14,10 +14,10 @@ Getting 404 NOT_FOUND error even after setting root directory to `frontend`.
 6. Click **Save**
 7. **IMPORTANT**: After saving, you MUST redeploy!
 
-### 2. Delete vercel.json (Let Vercel Auto-Detect)
-- Vercel automatically detects Next.js when `package.json` has `next` dependency
-- Custom `vercel.json` can interfere with auto-detection
-- **The vercel.json file has been removed** - let Vercel handle it automatically
+### 2. Minimal vercel.json
+- A minimal `vercel.json` with just `"framework": "nextjs"` has been added
+- This explicitly tells Vercel this is a Next.js project
+- This helps when Root Directory is set to a subdirectory
 
 ### 3. Check Build Logs in Vercel
 1. Go to **Deployments** tab in Vercel
