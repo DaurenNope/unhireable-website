@@ -140,10 +140,10 @@ export default function Header() {
                 ))}
               </div>
 
-              {/* Mobile Menu Button */}
+              {/* Mobile Menu Button - Only on mobile */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="ml-auto md:ml-0 p-2 border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all"
+                className="md:hidden ml-auto p-2 border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all"
                 aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
