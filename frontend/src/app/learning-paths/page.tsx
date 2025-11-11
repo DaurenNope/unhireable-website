@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Clock, Play, ExternalLink, BookOpen, Target, Zap, Calendar, BarChart3 } from "lucide-react";
-import { track } from "@/lib/analytics";
-import { ResourceDrawer } from "@/components/learning/ResourceDrawer";
-import Guard from "@/components/auth/Guard";
+import { track } from "../../lib/analytics";
+import { ResourceDrawer } from "../../components/learning/ResourceDrawer";
+import Guard from "../../components/auth/Guard";
 
 interface LearningResource {
   id: number;

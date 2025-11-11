@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Guard from "@/components/auth/Guard";
+import Guard from "../../components/auth/Guard";
 import { AnimatePresence, motion } from "framer-motion";
-import { ResumeBuilder, ResumeData } from "@/components/resume/ResumeBuilder";
+import { ResumeBuilder, ResumeData } from "../../components/resume/ResumeBuilder";
 import { ArrowLeft, Sparkles, Target, Rocket, Mail } from "lucide-react";
 
 export default function ResumePage() {

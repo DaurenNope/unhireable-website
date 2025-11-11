@@ -3,9 +3,9 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { JobCardStack } from "@/components/matches/JobCardStack";
-import { FiltersDrawer, type Filters } from "@/components/matches/FiltersDrawer";
-import Guard from "@/components/auth/Guard";
+import { JobCardStack } from "../../components/matches/JobCardStack";
+import { FiltersDrawer, type Filters } from "../../components/matches/FiltersDrawer";
+import Guard from "../../components/auth/Guard";
 
 export default function MatchesPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);

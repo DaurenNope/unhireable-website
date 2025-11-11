@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, useScroll, useTransform, useSpring, useInView, AnimatePresence } from "framer-motion";
 import { ArrowRight, Brain, Sparkles, Zap, Target, Users, BarChart3, Shield, Globe, Cpu, Network, Rocket, TrendingUp, AlertTriangle, CheckCircle2, Play, TrendingUp as TrendUp } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 
 export default function HomePage() {
   const [isLoaded, setIsLoaded] = useState(false);

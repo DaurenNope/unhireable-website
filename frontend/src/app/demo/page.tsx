@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Sparkles, Zap, Target, Users, BarChart3, Rocket, Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ChatbotContainer } from "@/components/assessment/ChatbotContainer";
+import { cn } from "../../lib/utils";
+import { ChatbotContainer } from "../../components/assessment/ChatbotContainer";
 
 export default function DemoPage() {
   const [isLoaded, setIsLoaded] = useState(false);
