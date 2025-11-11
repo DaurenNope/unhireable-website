@@ -1,0 +1,27 @@
+<svg width="200" height="60" viewBox="0 0 200 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="60" rx="8" fill="#000000"/>
+  
+  <!-- UnHireable Icon - Neural network with banned symbol -->
+  <g transform="translate(10, 15)">
+    <!-- Neural network nodes -->
+    <circle cx="8" cy="3" r="2" fill="#00D4FF"/>
+    <circle cx="22" cy="3" r="2" fill="#00D4FF"/>
+    <circle cx="8" cy="27" r="2" fill="#00D4FF"/>
+    <circle cx="22" cy="27" r="2" fill="#00D4FF"/>
+    
+    <!-- Neural connections -->
+    <path d="M8 3 L22 3 M8 27 L22 27 M8 3 L8 27 M22 3 L22 27" stroke="#00D4FF" stroke-width="2" fill="none"/>
+    
+    <!-- Banned symbol overlay -->
+    <circle cx="15" cy="15" r="10" fill="none" stroke="#FF4444" stroke-width="3"/>
+    <line x1="8" y1="8" x2="22" y2="22" stroke="#FF4444" stroke-width="3"/>
+  </g>
+  
+  <!-- UnHireable Text -->
+  <text x="45" y="25" font-family="Arial Black, sans-serif" font-size="20" font-weight="900" fill="#FFFFFF">Un</text>
+  <text x="70" y="25" font-family="Arial Black, sans-serif" font-size="20" font-weight="900" fill="#FF4444">Hireable</text>
+  
+  <!-- Tagline -->
+  <text x="45" y="42" font-family="monospace" font-size="8" fill="#FFFFFF" opacity="0.7">// Neural Career System</text>
+</svg>
