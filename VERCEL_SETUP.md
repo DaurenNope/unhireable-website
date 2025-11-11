@@ -7,18 +7,19 @@ Vercel was failing to build with error: `Cannot find module 'next-auth/react'`
 Vercel was building from the repository root instead of the `frontend` directory where the Next.js app and `package.json` (with `next-auth`) are located.
 
 ## Solution
-The `vercel.json` file has been configured with:
-- `buildCommand: "cd frontend && npm install --legacy-peer-deps && npm run build"` - Changes to frontend directory and builds
-- `installCommand: "cd frontend && npm install --legacy-peer-deps"` - Changes to frontend directory and installs dependencies
-- `outputDirectory: "frontend/.next"` - Specifies where the build output is located
+The `vercel.json` file has been moved to the `frontend/` directory. This ensures Vercel treats the `frontend` directory as the project root.
 
-**IMPORTANT**: You MUST also configure the Root Directory in Vercel Dashboard:
+The `vercel.json` file contains:
+- `buildCommand: "npm install --legacy-peer-deps && npm run build"` - Installs dependencies and builds
+- `installCommand: "npm install --legacy-peer-deps"` - Installs dependencies with React 19 compatibility
+
+**IMPORTANT**: You MUST configure the Root Directory in Vercel Dashboard:
 1. Go to Vercel Dashboard → Your Project → Settings → General
 2. Under "Root Directory", click "Edit" and set it to `frontend`
 3. Save the settings
-4. This tells Vercel to treat the `frontend` directory as the project root
+4. This tells Vercel to treat the `frontend` directory as the project root and use the `vercel.json` from that directory
 
-Alternatively, you can move the `vercel.json` file into the `frontend` directory, but the dashboard setting is the recommended approach for monorepos.
+Without setting the root directory in the dashboard, Vercel will try to build from the repository root and won't find the Next.js app.
 
 ## Environment Variables
 Make sure to set these in Vercel dashboard (Settings → Environment Variables):
