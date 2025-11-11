@@ -8,17 +8,17 @@ Vercel was building from the repository root instead of the `frontend` directory
 
 ## Solution
 The `vercel.json` file has been configured with:
-- `rootDirectory: "frontend"` - Tells Vercel to use the `frontend` directory as the build root
-- `installCommand: "npm install --legacy-peer-deps"` - Ensures dependencies install correctly (needed for React 19 compatibility)
-- `buildCommand: "npm install --legacy-peer-deps && npm run build"` - Ensures build uses correct dependencies
+- `buildCommand: "cd frontend && npm install --legacy-peer-deps && npm run build"` - Changes to frontend directory and builds
+- `installCommand: "cd frontend && npm install --legacy-peer-deps"` - Changes to frontend directory and installs dependencies
+- `outputDirectory: "frontend/.next"` - Specifies where the build output is located
 
-## Additional Vercel Settings
-If the build still fails, verify in Vercel dashboard:
-1. Go to Project Settings → General
-2. Ensure "Root Directory" is set to `frontend`
-3. Ensure "Framework Preset" is set to `Next.js`
-4. Ensure "Build Command" is set to `npm run build` (or uses `--legacy-peer-deps` if needed)
-5. Ensure "Install Command" is set to `npm install --legacy-peer-deps` (if needed)
+**IMPORTANT**: You MUST also configure the Root Directory in Vercel Dashboard:
+1. Go to Vercel Dashboard → Your Project → Settings → General
+2. Under "Root Directory", click "Edit" and set it to `frontend`
+3. Save the settings
+4. This tells Vercel to treat the `frontend` directory as the project root
+
+Alternatively, you can move the `vercel.json` file into the `frontend` directory, but the dashboard setting is the recommended approach for monorepos.
 
 ## Environment Variables
 Make sure to set these in Vercel dashboard (Settings → Environment Variables):
