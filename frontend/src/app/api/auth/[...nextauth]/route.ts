@@ -8,18 +8,31 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:800
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-    GitHub({
-      clientId: process.env.GITHUB_ID || "",
-      clientSecret: process.env.GITHUB_SECRET || "",
-    }),
-    LinkedIn({
-      clientId: process.env.LINKEDIN_ID || "",
-      clientSecret: process.env.LINKEDIN_SECRET || "",
-    }),
+    // Only include OAuth providers if credentials are configured
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
+    ...(process.env.GITHUB_ID && process.env.GITHUB_SECRET
+      ? [
+          GitHub({
+            clientId: process.env.GITHUB_ID,
+            clientSecret: process.env.GITHUB_SECRET,
+          }),
+        ]
+      : []),
+    ...(process.env.LINKEDIN_ID && process.env.LINKEDIN_SECRET
+      ? [
+          LinkedIn({
+            clientId: process.env.LINKEDIN_ID,
+            clientSecret: process.env.LINKEDIN_SECRET,
+          }),
+        ]
+      : []),
     Credentials({
       name: "Credentials",
       credentials: {
