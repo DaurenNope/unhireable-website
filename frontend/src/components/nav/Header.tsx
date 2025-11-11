@@ -31,8 +31,15 @@ export default function Header() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-transparent border-b border-black/10">
+    <nav className="sticky top-0 z-40 bg-transparent">
       <div className="relative w-full">
+        {/* Subtle top accent line with animation */}
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-30 origin-left"
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2.5 md:py-3.5">
             
@@ -44,31 +51,39 @@ export default function Header() {
                 href="/" 
                 className="md:hidden text-right group"
               >
-                <div className="font-black tracking-tighter">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="font-black tracking-tighter"
+                >
                   <div className="text-lg sm:text-xl leading-none">
                     <span className="bg-black text-white px-1">UN</span>
                     <span className="text-black">HIREABLE</span>
                   </div>
-                  <div className="text-[8px] font-mono mt-0.5 text-gray-500">
+                  <div className="text-[8px] font-mono mt-0.5 text-gray-500 group-hover:text-gray-700 transition-colors">
                     //neural career system
                   </div>
-                </div>
+                </motion.div>
               </Link>
 
               {/* Desktop Auth Button - First */}
               {session ? (
                 <motion.button
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
                   whileHover={{ scale: 1.05, rotate: -1 }}
                   whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                   className="hidden md:block px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-colors shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:shadow-[1px_1px_0_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
                 >
                   OUT
                 </motion.button>
               ) : (
                 <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
                   whileHover={{ scale: 1.05, rotate: 1 }}
                   whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                   className="hidden md:block"
                 >
                   <Link
@@ -87,7 +102,7 @@ export default function Header() {
               <div className="hidden md:flex items-center gap-1.5">
                 {navLinks.map((link, index) => {
                   const active = isActive(link.href);
-                  const rotations = ["rotate-1", "-rotate-1", "rotate-0.5", "-rotate-0.5"];
+                  const rotations = [1, -1, 0.5, -0.5];
                   const rotation = rotations[index % rotations.length];
                   const offsets = [0, -1, 1, -0.5];
                   const offset = offsets[index % offsets.length];
@@ -95,10 +110,16 @@ export default function Header() {
                   return (
                     <motion.div
                       key={link.href}
-                      whileHover={{ scale: 1.08, rotate: 0, zIndex: 10 }}
+                      initial={{ opacity: 0, y: -10, rotate: rotation * 2 }}
+                      animate={{ opacity: 1, y: offset, rotate: active ? 0 : rotation }}
+                      whileHover={{ scale: 1.08, rotate: 0, y: 0, zIndex: 10 }}
                       whileTap={{ scale: 0.95 }}
-                      style={{ transform: `rotate(${active ? 0 : rotation}) translateY(${offset}px)` }}
-                      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 400, 
+                        damping: 17,
+                        delay: index * 0.05
+                      }}
                     >
                       <Link
                         href={link.href}
@@ -111,8 +132,9 @@ export default function Header() {
                         {link.label}
                         {active && (
                           <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 15 }}
                             className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 border border-black rounded-full"
                           />
                         )}
@@ -130,8 +152,11 @@ export default function Header() {
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    whileHover={{ scale: 1.15, rotate: 12 }}
+                    initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    whileHover={{ scale: 1.15, rotate: 12, y: -2 }}
                     whileTap={{ scale: 0.9 }}
+                    transition={{ delay: idx * 0.1, type: "spring", stiffness: 300 }}
                     className="w-6 h-6 border-2 border-black bg-white text-black flex items-center justify-center text-[9px] font-black hover:bg-black hover:text-white transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,0.8)]"
                     title={social.label}
                   >
@@ -141,39 +166,58 @@ export default function Header() {
               </div>
 
               {/* Mobile Menu Button - Only on mobile */}
-              <button
+              <motion.button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 className="md:hidden ml-auto p-2 border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all"
                 aria-label="Toggle menu"
               >
-                {isMobileMenuOpen ? (
-                  <X className="w-4 h-4" />
-                ) : (
-                  <Menu className="w-4 h-4" />
-                )}
-              </button>
+                <motion.div
+                  initial={false}
+                  animate={{ rotate: isMobileMenuOpen ? 90 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {isMobileMenuOpen ? (
+                    <X className="w-4 h-4" />
+                  ) : (
+                    <Menu className="w-4 h-4" />
+                  )}
+                </motion.div>
+              </motion.button>
             </div>
 
             {/* RIGHT: Desktop Logo - Professional, clean, bold */}
-            <div className="hidden md:flex items-center ml-4">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+              className="hidden md:flex items-center ml-4"
+            >
               <Link 
                 href="/" 
                 className="text-right group"
               >
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400 }}
                   className="font-black tracking-tighter"
                 >
                   <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl leading-none">
                     <span className="bg-black text-white px-1.5 sm:px-2">UN</span>
                     <span className="text-black">HIREABLE</span>
                   </div>
-                  <div className="text-[8px] sm:text-[9px] md:text-[10px] font-mono mt-0.5 sm:mt-1 text-gray-500 group-hover:text-gray-700 transition-colors">
+                  <motion.div
+                    initial={{ opacity: 0.6 }}
+                    whileHover={{ opacity: 1 }}
+                    className="text-[8px] sm:text-[9px] md:text-[10px] font-mono mt-0.5 sm:mt-1 text-gray-500 group-hover:text-gray-700 transition-colors"
+                  >
                     //neural career system
-                  </div>
+                  </motion.div>
                 </motion.div>
               </Link>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

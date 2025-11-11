@@ -5,11 +5,17 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  adjustFontFallback: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
@@ -21,6 +27,16 @@ export const metadata: Metadata = {
     apple: '/favicon.ico',
   },
   manifest: '/site.webmanifest',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://unhireable-website.vercel.app'),
+  openGraph: {
+    title: "UNHIREABLE - Neural Career System",
+    description: "AI-powered career assessment and job matching platform.",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 import { Providers } from "./providers";

@@ -41,7 +41,15 @@ export const authOptions: NextAuthOptions = {
         full_name: { label: "Full Name", type: "text", required: false },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          console.error("Auth: Missing email or password");
+          return null;
+        }
+        
+        if (!BACKEND_URL) {
+          console.error("Auth: BACKEND_URL is not configured");
+          throw new Error("Backend URL is not configured. Please set NEXT_PUBLIC_BACKEND_URL environment variable.");
+        }
         
         try {
           // Try login first
@@ -56,6 +64,11 @@ export const authOptions: NextAuthOptions = {
 
           if (loginRes.ok) {
             const loginData = await loginRes.json();
+            if (!loginData.access_token) {
+              console.error("Auth: No access_token in login response", loginData);
+              return null;
+            }
+            
             // Get user info from backend
             const userRes = await fetch(`${BACKEND_URL}/api/auth/me`, {
               headers: {
@@ -72,7 +85,12 @@ export const authOptions: NextAuthOptions = {
                 accessToken: loginData.access_token,
                 backendUserId: userData.id,
               };
+            } else {
+              console.error("Auth: Failed to fetch user info", userRes.status, await userRes.text().catch(() => ""));
             }
+          } else {
+            const errorText = await loginRes.text().catch(() => "");
+            console.error("Auth: Login failed", loginRes.status, errorText);
           }
 
           // If login fails and we have full_name, try registration
@@ -89,6 +107,11 @@ export const authOptions: NextAuthOptions = {
 
             if (registerRes.ok) {
               const registerData = await registerRes.json();
+              if (!registerData.access_token) {
+                console.error("Auth: No access_token in register response", registerData);
+                return null;
+              }
+              
               // Get user info from backend
               const userRes = await fetch(`${BACKEND_URL}/api/auth/me`, {
                 headers: {
@@ -109,6 +132,7 @@ export const authOptions: NextAuthOptions = {
             } else {
               // Registration failed - email might already exist
               const errorData = await registerRes.json().catch(() => ({}));
+              console.error("Auth: Registration failed", registerRes.status, errorData);
               throw new Error(errorData.detail || "Registration failed");
             }
           }
@@ -117,6 +141,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         } catch (error) {
           console.error("Auth error:", error);
+          if (error instanceof Error) {
+            throw error;
+          }
           return null;
         }
       },
