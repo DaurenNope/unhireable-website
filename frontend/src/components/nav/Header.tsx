@@ -31,24 +31,37 @@ export default function Header() {
   };
 
   return (
-    <nav className="sticky top-0 z-40 bg-transparent">
+    <nav className="sticky top-0 z-40 bg-transparent border-b border-black/10">
       <div className="relative w-full">
-        {/* Subtle top accent line */}
-        <div className="h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-30" />
-        
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-2.5 md:py-3.5">
             
-            {/* LEFT: Auth + Nav + Social - Chaotic but organized */}
+            {/* LEFT: Logo (mobile) + Auth + Nav + Social (desktop) */}
             <div className="flex items-center gap-2 sm:gap-3 flex-1">
               
-              {/* Auth Button - Bold, first */}
+              {/* Mobile Logo - Left side */}
+              <Link 
+                href="/" 
+                className="md:hidden text-right group"
+              >
+                <div className="font-black tracking-tighter">
+                  <div className="text-lg sm:text-xl leading-none">
+                    <span className="bg-black text-white px-1">UN</span>
+                    <span className="text-black">HIREABLE</span>
+                  </div>
+                  <div className="text-[8px] font-mono mt-0.5 text-gray-500">
+                    //neural career system
+                  </div>
+                </div>
+              </Link>
+
+              {/* Desktop Auth Button - First */}
               {session ? (
                 <motion.button
                   onClick={() => signOut({ callbackUrl: "/" })}
                   whileHover={{ scale: 1.05, rotate: -1 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-colors shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:shadow-[1px_1px_0_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
+                  className="hidden md:block px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-wider border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-colors shadow-[3px_3px_0_0_rgba(0,0,0,1)] hover:shadow-[1px_1px_0_0_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px]"
                 >
                   OUT
                 </motion.button>
@@ -56,6 +69,7 @@ export default function Header() {
                 <motion.div
                   whileHover={{ scale: 1.05, rotate: 1 }}
                   whileTap={{ scale: 0.95 }}
+                  className="hidden md:block"
                 >
                   <Link
                     href="/login"
@@ -129,7 +143,7 @@ export default function Header() {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden ml-auto p-2 border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all"
+                className="ml-auto md:ml-0 p-2 border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all"
                 aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? (
@@ -140,8 +154,8 @@ export default function Header() {
               </button>
             </div>
 
-            {/* RIGHT: Logo - Professional, clean, bold */}
-            <div className="flex items-center ml-4">
+            {/* RIGHT: Desktop Logo - Professional, clean, bold */}
+            <div className="hidden md:flex items-center ml-4">
               <Link 
                 href="/" 
                 className="text-right group"
@@ -175,6 +189,28 @@ export default function Header() {
             className="md:hidden overflow-hidden bg-white border-t-2 border-black"
           >
             <div className="px-4 py-4 space-y-2">
+              {/* Auth Button in Mobile Menu */}
+              {session ? (
+                <button
+                  onClick={() => {
+                    signOut({ callbackUrl: "/" });
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full px-4 py-3 text-sm font-black uppercase border-2 border-black bg-white text-black hover:bg-black hover:text-white transition-all shadow-[2px_2px_0_0_rgba(0,0,0,0.8)] text-left"
+                >
+                  LOGOUT
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block w-full px-4 py-3 text-sm font-black uppercase border-2 border-cyan-400 bg-cyan-400 text-black hover:bg-black hover:text-cyan-400 transition-all shadow-[2px_2px_0_0_rgba(6,182,212,0.8)] text-left"
+                >
+                  LOGIN
+                </Link>
+              )}
+
+              {/* Navigation Links */}
               {navLinks.map((link, index) => {
                 const active = isActive(link.href);
                 return (
