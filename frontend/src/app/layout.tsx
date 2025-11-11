@@ -41,7 +41,7 @@ export default function RootLayout({
         <Providers>
           <CustomCursor />
           <Header />
-          <main className="flex-1 pt-1 sm:pt-1.5 md:pt-2">
+          <main className="flex-1 pt-0.5 sm:pt-1">
             {children}
           </main>
           <Footer />

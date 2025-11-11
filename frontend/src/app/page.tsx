@@ -81,7 +81,7 @@ export default function HomePage() {
       {/* Main Content - Asymmetric Layout */}
       <main className="relative z-10">
         {/* Section 1: Hero - Asymmetric */}
-        <section className="min-h-screen flex items-center justify-start px-4 sm:px-6 md:px-8 lg:px-16 py-1 sm:py-2 md:py-3 lg:py-4">
+        <section className="min-h-screen flex items-center justify-start px-4 sm:px-6 md:px-8 lg:px-16 py-0.5 sm:py-1 md:py-2 lg:py-3">
           <div className="max-w-7xl w-full">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
               {/* Left Column - Massive Text */}
