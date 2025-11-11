@@ -24,9 +24,9 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "./providers";
-import Header from "@/components/nav/Header";
-import { CustomCursor } from "@/components/CustomCursor";
-import { Footer } from "@/components/Footer";
+import Header from "../components/nav/Header";
+import { CustomCursor } from "../components/CustomCursor";
+import { Footer } from "../components/Footer";
 
 export default function RootLayout({
   children,
