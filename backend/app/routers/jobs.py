@@ -13,9 +13,10 @@ MOCK_JOBS = [
         "id": 1,
         "title": "Senior Frontend Developer",
         "company": "TechCorp",
-        "description": "We're looking for a senior frontend developer to join our team...",
+        "headline": "Scale design systems and motion for a product that ships weekly.",
+        "description": "We're looking for a senior frontend developer to join our team and evolve our design system, micro-interactions, and accessibility story across millions of users.",
         "location": "San Francisco, CA / Remote",
-        "salary": "$120k - $180k",
+        "salary": "$120k - $180k base + equity",
         "job_type": "Full-time",
         "remote_status": "Remote",
         "experience_level": "Senior Level",
@@ -23,15 +24,24 @@ MOCK_JOBS = [
         "preferred_skills": ["Next.js", "GraphQL", "AWS"],
         "benefits": ["Health insurance", "401k", "Remote work", "Learning budget"],
         "posted_at": "2024-01-15",
-        "source": "LinkedIn"
+        "source": "LinkedIn",
+        "company_stage": "Series C",
+        "team_size": 180,
+        "culture_values": ["fast_paced", "innovative", "collaborative"],
+        "growth_signals": {
+            "revenue_growth": 0.32,
+            "headcount_growth": 0.18,
+            "runway_months": 30
+        }
     },
     {
         "id": 2,
         "title": "Full Stack Engineer",
         "company": "StartupXYZ",
-        "description": "Join our fast-growing startup as a full stack engineer...",
+        "headline": "Own product verticals end-to-end in a hungry, product-led startup.",
+        "description": "Join our fast-growing startup as a full stack engineer owning customer-facing features, experimentation, and shipping impact weekly.",
         "location": "New York, NY",
-        "salary": "$90k - $140k",
+        "salary": "$90k - $140k + equity",
         "job_type": "Full-time",
         "remote_status": "Hybrid",
         "experience_level": "Mid Level",
@@ -39,13 +49,22 @@ MOCK_JOBS = [
         "preferred_skills": ["Docker", "AWS", "MongoDB"],
         "benefits": ["Equity", "Health insurance", "Flexible hours"],
         "posted_at": "2024-01-10",
-        "source": "Indeed"
+        "source": "Indeed",
+        "company_stage": "Series B",
+        "team_size": 85,
+        "culture_values": ["collaborative", "growth_focused", "innovative"],
+        "growth_signals": {
+            "revenue_growth": 0.24,
+            "headcount_growth": 0.22,
+            "runway_months": 24
+        }
     },
     {
         "id": 3,
         "title": "Junior Web Developer",
         "company": "Digital Agency",
-        "description": "Looking for junior developers to work on exciting client projects...",
+        "headline": "Ship high-visibility client work while you build your stack.",
+        "description": "Looking for junior developers to work on exciting client projects, landing pages, and interactive experiences across multiple industries.",
         "location": "Austin, TX",
         "salary": "$60k - $80k",
         "job_type": "Full-time",
@@ -55,7 +74,15 @@ MOCK_JOBS = [
         "preferred_skills": ["React", "WordPress", "SEO"],
         "benefits": ["Training program", "Health insurance"],
         "posted_at": "2024-01-12",
-        "source": "Company website"
+        "source": "Company website",
+        "company_stage": "Private",
+        "team_size": 45,
+        "culture_values": ["structured", "collaborative", "client_service"],
+        "growth_signals": {
+            "revenue_growth": 0.12,
+            "headcount_growth": 0.1,
+            "runway_months": 18
+        }
     }
 ]
 
@@ -176,6 +203,116 @@ def calculate_market_intelligence(job: Dict[str, Any], match_score: float) -> Di
         "time_to_hire": "2-4 weeks" if competition_level == "low" else "4-6 weeks" if competition_level == "medium" else "6-8 weeks"
     }
 
+
+def derive_culture_fit(user_preferences: List[str], culture_analysis: Dict[str, str]) -> Dict[str, Any]:
+    """Derive cultural compatibility insights."""
+    if not user_preferences:
+        user_preferences = ["fast_paced", "innovative", "collaborative"]
+
+    overlaps = [value for value in culture_analysis.values() if value in user_preferences]
+    gaps = [pref for pref in user_preferences if pref not in culture_analysis.values()]
+
+    score = 60 + len(overlaps) * 10 - len(gaps) * 5
+    score = max(30, min(95, score))
+
+    summary = "Aligned" if score >= 75 else "Worth a conversation" if score >= 55 else "Probe during interviews"
+
+    highlights = [f"Company leans {value.replace('_', ' ')}" for value in overlaps]
+    watchouts = [f"Culture may be lighter on {gap.replace('_', ' ')}" for gap in gaps]
+
+    return {
+        "score": round(score, 1),
+        "summary": summary,
+        "highlights": highlights[:3],
+        "watchouts": watchouts[:3]
+    }
+
+
+def evaluate_growth_potential(job: Dict[str, Any]) -> Dict[str, Any]:
+    """Evaluate growth potential based on company signals."""
+    signals = job.get("growth_signals", {})
+    revenue_growth = signals.get("revenue_growth", 0.15)
+    headcount_growth = signals.get("headcount_growth", 0.1)
+    runway = signals.get("runway_months", 18)
+
+    score = (revenue_growth * 150) + (headcount_growth * 120) + (runway / 36 * 20)
+    score = max(20, min(95, score))
+
+    momentum = "rocket" if revenue_growth > 0.3 else "growing" if revenue_growth > 0.15 else "steady"
+    runway_class = "healthy" if runway >= 24 else "moderate" if runway >= 18 else "tight"
+
+    metrics = {
+        "revenue_growth_pct": round(revenue_growth * 100, 1),
+        "headcount_growth_pct": round(headcount_growth * 100, 1),
+        "runway_months": runway,
+        "momentum": momentum,
+        "runway_health": runway_class,
+    }
+
+    narrative = "Series C rocketship" if momentum == "rocket" else "Confident climb" if momentum == "growing" else "Measured pace"
+
+    return {
+        "score": round(score, 1),
+        "narrative": narrative,
+        "metrics": metrics,
+        "signal": {
+            "career_ceiling": "Leadership potential" if score > 70 else "Solid IC growth",
+            "team_visibility": "High" if job.get("team_size", 50) < 120 else "Medium"
+        }
+    }
+
+
+def generate_negotiation_playbook(job: Dict[str, Any], market_intel: Dict[str, Any], skill_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate salary negotiation guidance."""
+    salary_comparison = market_intel.get("salary_comparison", {})
+    max_offer = salary_comparison.get("job_max", 0)
+    industry_avg = salary_comparison.get("industry_average", max_offer)
+    anchor = int(max(max_offer, industry_avg * 1.1))
+
+    leverage = []
+    if skill_analysis.get("score", 0) > 80:
+        leverage.append("You cover nearly every critical skill they asked for")
+    if salary_comparison.get("position") == "below_average":
+        leverage.append("Market data shows peers at a higher band")
+    if job.get("company_stage") in {"Series C", "Series B"}:
+        leverage.append("High growth stage typically budgets aggressively for top talent")
+
+    red_flags = []
+    if salary_comparison.get("position") == "below_average":
+        red_flags.append("Salary band trends below market average")
+    if market_intel.get("competition_level") == "high":
+        red_flags.append("Competition is intense – speed will matter")
+
+    closing = "Frame an ask around the upper band with evidence and offer to review comp again at the 6-month mark"
+
+    return {
+        "salary_anchor": f"${anchor:,}",
+        "counter_floor": f"${int(anchor * 0.95):,}",
+        "leverage_points": leverage[:3],
+        "risk_flags": red_flags[:2],
+        "closing_move": closing
+    }
+
+
+def calculate_score_breakdown(skill_analysis: Dict[str, Any], experience_match: float, culture_fit: Dict[str, Any], growth: Dict[str, Any], market_intel: Dict[str, Any]) -> Dict[str, float]:
+    """Provide a normalized score breakdown for UI."""
+    skills = min(100, skill_analysis.get("score", 0))
+    experience = round(experience_match * 100, 1)
+    culture = culture_fit.get("score", 60)
+    growth_score = growth.get("score", 60)
+    compensation = 80 if market_intel.get("salary_comparison", {}).get("position") == "above_average" else 65
+
+    total = min(100, round(skills * 0.45 + experience * 0.2 + culture * 0.15 + growth_score * 0.1 + compensation * 0.1, 1))
+
+    return {
+        "skills": round(skills, 1),
+        "experience": round(experience, 1),
+        "culture": round(culture, 1),
+        "growth": round(growth_score, 1),
+        "compensation": round(compensation, 1),
+        "total": total
+    }
+
 @router.get("/matches/{user_id}")
 async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
     """Get intelligent job matches for a user"""
@@ -189,7 +326,17 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
     # Get user's assessment data
     assessment = db.query(Assessment).filter(Assessment.user_id == user_id_int).first()
     if not assessment:
-        raise HTTPException(status_code=404, detail="Assessment not found")
+        # Return empty matches if no assessment exists
+        return {
+            "matches": [],
+            "total": 0,
+            "has_assessment": False,
+            "user_profile": {
+                "skills_count": 0,
+                "experience_level": "",
+                "career_interests": []
+            }
+        }
     
     # Get user skills
     user_skills_data = db.query(UserSkill).filter(UserSkill.user_id == user_id_int).all()
@@ -243,12 +390,23 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
             all_match_reasons.append("Matches your location preferences")
         if interest_bonus > 0:
             all_match_reasons.append("Aligns with your career interests")
+        if culture_fit["score"] >= 70:
+            all_match_reasons.append(f"Culture fit looks {culture_fit['summary'].lower()}")
+        if growth_potential["score"] >= 70:
+            all_match_reasons.append("High trajectory role with strong growth signals")
         
         # Market intelligence
         market_intel = calculate_market_intelligence(job, overall_score)
         
         # Company culture analysis
         culture_analysis = analyze_company_culture(job["description"])
+        user_culture_preferences = answers.get("work_culture", [])
+        culture_fit = derive_culture_fit(user_culture_preferences, culture_analysis)
+        growth_potential = evaluate_growth_potential(job)
+        negotiation_plan = generate_negotiation_playbook(job, market_intel, skill_analysis)
+        score_breakdown = calculate_score_breakdown(skill_analysis, experience_match, culture_fit, growth_potential, market_intel)
+        base_score = score_breakdown["total"]
+        overall_score = min(100, base_score + (5 if location_bonus else 0) + min(5, interest_bonus))
         
         matches.append({
             "id": job["id"],
@@ -256,6 +414,7 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
             "company": job["company"],
             "location": job["location"],
             "salary": job["salary"],
+            "headline": job.get("headline", job["description"][:160]),
             "match_score": round(overall_score, 1),
             "skill_gaps": skill_analysis["skill_gaps"],
             "match_reasons": all_match_reasons,
@@ -267,7 +426,15 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
             "required_skills_matched": skill_analysis["required_matches"],
             "total_required_skills": len(job["required_skills"]),
             "preferred_skills_matched": skill_analysis["preferred_matches"],
-            "total_preferred_skills": len(job["preferred_skills"])
+            "total_preferred_skills": len(job["preferred_skills"]),
+            "required_skills": job["required_skills"],
+            "preferred_skills": job["preferred_skills"],
+            "culture_fit": culture_fit,
+            "growth_potential": growth_potential,
+            "negotiation_plan": negotiation_plan,
+            "score_breakdown": score_breakdown,
+            "location_alignment": location_bonus > 0,
+            "interest_alignment": interest_bonus > 0
         })
     
     # Sort by match score
@@ -276,6 +443,7 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
     return {
         "matches": matches,
         "total": len(matches),
+        "has_assessment": True,
         "user_profile": {
             "skills_count": len(user_skills),
             "experience_level": user_experience,
@@ -295,11 +463,17 @@ async def get_job_details(job_id: int, db: Session = Depends(get_db)):
     # Enhanced job analysis
     culture_analysis = analyze_company_culture(job["description"])
     market_intel = calculate_market_intelligence(job, 75)  # Default match score for details view
+    culture_fit = derive_culture_fit(["fast_paced", "collaborative", "growth_focused"], culture_analysis)
+    growth_potential = evaluate_growth_potential(job)
+    negotiation_plan = generate_negotiation_playbook(job, market_intel, {"score": 75})
     
     return {
         "job": job,
         "culture_analysis": culture_analysis,
+        "culture_fit": culture_fit,
         "market_intelligence": market_intel,
+        "growth_potential": growth_potential,
+        "negotiation_plan": negotiation_plan,
         "similar_jobs": [j for j in MOCK_JOBS if j["id"] != job_id][:3]
     }
 

@@ -128,6 +128,9 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
     try {
       // Mock API call
       console.log('Starting assessment for user:', userId);
+      // Track assessment start
+      const { track } = await import("../../lib/analytics");
+      track({ type: "assessment_start", userId });
     } catch (error) {
       console.error('Failed to start assessment:', error);
     }
@@ -323,6 +326,9 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
       
       setMessages(prev => [...prev, completionMessage]);
       setIsComplete(true);
+      // Track assessment completion
+      const { track } = await import("../../lib/analytics");
+      track({ type: "assessment_complete", userId });
       onAssessmentComplete(answers);
     } catch (error) {
       console.error('Failed to complete assessment:', error);
@@ -372,12 +378,13 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-4xl mx-auto h-[600px] flex items-center justify-center">
+      <div className="w-full max-w-4xl mx-auto h-[600px] flex items-center justify-center" role="status" aria-live="polite" aria-label="Loading assessment">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
           className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
         />
+        <span className="sr-only">Loading assessment</span>
       </div>
     );
   }

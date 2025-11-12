@@ -170,11 +170,76 @@ export const authOptions: NextAuthOptions = {
       // OAuth providers - create/link account in backend
       if (account && user && account.provider !== "credentials") {
         try {
-          // For OAuth, we need to create or link the account in our backend
-          // For now, we'll just store the OAuth info
-          // TODO: Implement OAuth user creation/linking in backend
-          token.accessToken = account.access_token;
-          token.provider = account.provider;
+          // Create or get user in backend
+          const oauthEmail = user.email;
+          const oauthName = user.name || oauthEmail;
+          
+          if (!oauthEmail) {
+            console.error("OAuth: No email provided");
+            return token;
+          }
+
+          // Try to get existing user or create new one
+          let backendToken = null;
+          let backendUserId = null;
+
+          // First, try to login (user might already exist)
+          const loginRes = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: oauthEmail,
+              password: "oauth_user_no_password", // Dummy password for OAuth users
+            }),
+          });
+
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            backendToken = loginData.access_token;
+            
+            // Get user info
+            const userRes = await fetch(`${BACKEND_URL}/api/auth/me`, {
+              headers: { Authorization: `Bearer ${backendToken}` },
+            });
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              backendUserId = userData.id;
+            }
+          } else {
+            // User doesn't exist, create new one
+            const registerRes = await fetch(`${BACKEND_URL}/api/auth/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: oauthEmail,
+                password: `oauth_${account.provider}_${Date.now()}`, // Generate unique password
+                full_name: oauthName,
+              }),
+            });
+
+            if (registerRes.ok) {
+              const registerData = await registerRes.json();
+              backendToken = registerData.access_token;
+              
+              // Get user info
+              const userRes = await fetch(`${BACKEND_URL}/api/auth/me`, {
+                headers: { Authorization: `Bearer ${backendToken}` },
+              });
+              if (userRes.ok) {
+                const userData = await userRes.json();
+                backendUserId = userData.id;
+              }
+            } else {
+              console.error("OAuth: Failed to create user in backend", await registerRes.text().catch(() => ""));
+            }
+          }
+
+          // Store backend token and user ID
+          if (backendToken && backendUserId) {
+            token.accessToken = backendToken;
+            token.backendUserId = backendUserId;
+            token.provider = account.provider;
+          }
         } catch (error) {
           console.error("OAuth error:", error);
         }
