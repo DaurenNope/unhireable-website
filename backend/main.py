@@ -2,13 +2,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
+import os
 
 # Import routers
 from app.routers import assessments, auth, users, resumes, jobs, learning
+from app.core.database import engine, Base
+from app.models import user, assessment, job  # Import all models to register them
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup: Create database tables
+    Base.metadata.create_all(bind=engine)
     yield
     # Shutdown
 
@@ -20,9 +24,15 @@ app = FastAPI(
 )
 
 # Configure CORS
+# Get allowed origins from environment variable or use defaults
+allowed_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:3001,https://unhireable-website.vercel.app"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Next.js dev server
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
