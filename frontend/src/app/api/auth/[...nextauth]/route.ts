@@ -138,13 +138,19 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Login failed and no registration attempted
-          return null;
+          const errorText = await loginRes.text().catch(() => "");
+          console.error("Auth: Login failed - no registration attempted", loginRes.status, errorText);
+          throw new Error(errorText || "Invalid email or password");
         } catch (error) {
           console.error("Auth error:", error);
+          if (error instanceof Error && error.message.includes("fetch")) {
+            console.error("Auth: Network error - is backend running?", BACKEND_URL);
+            throw new Error(`Cannot connect to backend at ${BACKEND_URL}. Please check if the backend is running.`);
+          }
           if (error instanceof Error) {
             throw error;
           }
-          return null;
+          throw new Error("Authentication failed. Please try again.");
         }
       },
     }),
