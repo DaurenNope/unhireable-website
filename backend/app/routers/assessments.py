@@ -88,7 +88,7 @@ async def get_assessment(
 ):
     """Get assessment status and progress"""
     try:
-    return service.get_assessment_status(user_id)
+        return service.get_assessment_status(user_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
