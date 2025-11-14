@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Twitter, Linkedin, Instagram } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Header() {
@@ -20,9 +20,9 @@ export default function Header() {
   ];
 
   const socialLinks = [
-    { name: "𝕏", href: "https://twitter.com/unhireable", label: "Twitter" },
-    { name: "in", href: "https://linkedin.com/company/unhireable", label: "LinkedIn" },
-    { name: "📷", href: "https://instagram.com/unhireable", label: "Instagram" },
+    { icon: Twitter, label: "Twitter" },
+    { icon: Linkedin, label: "LinkedIn" },
+    { icon: Instagram, label: "Instagram" },
   ];
 
   const isActive = (href: string) => {
@@ -145,25 +145,25 @@ export default function Header() {
                 })}
               </div>
 
-              {/* Desktop Social Icons - Minimal squares */}
+              {/* Desktop Social Icons - No links */}
               <div className="hidden lg:flex items-center gap-1.5 ml-3 pl-3 border-l-2 border-black/10">
-                {socialLinks.map((social, idx) => (
-                  <motion.a
-                    key={social.label}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                    whileHover={{ scale: 1.15, rotate: 12, y: -2 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ delay: idx * 0.1, type: "spring", stiffness: 300 }}
-                    className="w-6 h-6 border-2 border-black bg-white text-black flex items-center justify-center text-[9px] font-black hover:bg-black hover:text-white transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,0.8)]"
-                    title={social.label}
-                  >
-                    {social.name}
-                  </motion.a>
-                ))}
+                {socialLinks.map((social, idx) => {
+                  const IconComponent = social.icon;
+                  return (
+                    <motion.div
+                      key={social.label}
+                      initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      whileHover={{ scale: 1.15, rotate: 12, y: -2 }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ delay: idx * 0.1, type: "spring", stiffness: 300 }}
+                      className="w-6 h-6 border-2 border-black bg-white text-black flex items-center justify-center cursor-not-allowed opacity-60"
+                      title={social.label}
+                    >
+                      <IconComponent className="w-3 h-3" />
+                    </motion.div>
+                  );
+                })}
               </div>
 
               {/* Mobile Menu Button - Only on mobile */}
@@ -280,22 +280,22 @@ export default function Header() {
                 );
               })}
 
-              {/* Mobile Social */}
+              {/* Mobile Social - No links */}
               <div className="pt-3 mt-3 border-t-2 border-black">
                 <div className="flex items-center gap-2 px-4">
-                  {socialLinks.map((social) => (
-                    <a
-                      key={social.label}
-                      href={social.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="w-9 h-9 border-2 border-black bg-white text-black flex items-center justify-center text-sm font-black hover:bg-black hover:text-white transition-all"
-                      title={social.label}
-                    >
-                      {social.name}
-                    </a>
-                  ))}
+                  {socialLinks.map((social) => {
+                    const IconComponent = social.icon;
+                    return (
+                      <div
+                        key={social.label}
+                        className="w-9 h-9 border-2 border-black bg-white text-black flex items-center justify-center cursor-not-allowed opacity-60"
+                        title={social.label}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <IconComponent className="w-4 h-4" />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

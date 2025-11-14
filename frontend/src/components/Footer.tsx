@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { Twitter, Linkedin, Instagram } from "lucide-react";
 
 export function Footer() {
   return (
@@ -41,22 +42,17 @@ export function Footer() {
           >
             Contact
           </a>
-          <a
-            href="https://twitter.com/unhireable"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block hover:text-cyan-400 transition-colors"
-          >
-            𝕏 Twitter
-          </a>
-          <a
-            href="https://linkedin.com/company/unhireable"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block hover:text-cyan-400 transition-colors"
-          >
-            LinkedIn
-          </a>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="opacity-60 cursor-not-allowed" title="Twitter">
+              <Twitter className="w-4 h-4" />
+            </div>
+            <div className="opacity-60 cursor-not-allowed" title="LinkedIn">
+              <Linkedin className="w-4 h-4" />
+            </div>
+            <div className="opacity-60 cursor-not-allowed" title="Instagram">
+              <Instagram className="w-4 h-4" />
+            </div>
+          </div>
           <div className="text-gray-500 text-xs mt-4">
             © 2024 Unhireable
           </div>
