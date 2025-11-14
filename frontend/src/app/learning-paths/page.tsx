@@ -2,71 +2,120 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Clock, Play, ExternalLink, BookOpen, Target, Zap, Calendar, BarChart3 } from "lucide-react";
+import { ArrowLeft, Clock, Play, ExternalLink, BookOpen, Target, Zap, Calendar, BarChart3, Loader2, Sparkles } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { track } from "../../lib/analytics";
-import { ResourceDrawer } from "../../components/learning/ResourceDrawer";
-import Guard from "../../components/auth/Guard";
+import { PathDetailsDrawer, PersonalizedLearningPath } from "../../components/learning/PathDetailsDrawer";
 
-interface LearningResource {
-  id: number;
-  title: string;
-  provider: string;
-  type: "course" | "tutorial" | "bootcamp" | "certification" | "book";
-  duration: number; // in hours
-  cost: number;
-  difficulty: "beginner" | "intermediate" | "advanced";
-  rating: number;
-  url: string;
-  completed: boolean;
-  progress: number;
-}
-
-interface LearningPath {
-  id: number;
-  targetJob: string;
-  targetCompany: string;
-  skillGaps: string[];
-  resources: LearningResource[];
-  totalHours: number;
-  estimatedWeeks: number;
-  hoursPerDay: number;
-  status: "not_started" | "in_progress" | "completed";
-  progress: number;
-  startDate?: string;
-  completionDate?: string;
-}
+type LearningPath = PersonalizedLearningPath & {
+  created_at?: string;
+};
 
 export default function LearningPathsPage() {
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [selectedPath, setSelectedPath] = useState<LearningPath | null>(null);
   const [loading, setLoading] = useState(true);
-  const [insights, setInsights] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'paths' | 'resources'>('paths');
   const [saved, setSaved] = useState<Set<number | string>>(new Set());
+  const [generating, setGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Load learning paths from API
+    track({ type: "page_view", path: pathname || "/learning-paths" });
+  }, [pathname]);
+
+  useEffect(() => {
+    if (status === "loading") return;
+
     const loadLearningPaths = async () => {
       try {
         setLoading(true);
-        const userId = localStorage.getItem('user_id') || 'demo_user';
-        
+        const backendUserId = (session as any)?.backendUserId;
+        const userId = backendUserId ? String(backendUserId) : (typeof window !== "undefined" ? localStorage.getItem("user_id") : null) || "demo_user";
+
         const response = await fetch(`/api/learning/paths/${userId}`);
         const data = await response.json();
-        
+
         if (data.paths) {
-          setPaths(data.paths);
+          const normalized = data.paths.map((path: any) => ({
+            ...path,
+            learning_style: path.learning_style ?? {},
+            skill_gaps: path.skill_gaps ?? [],
+            skills_with_resources: path.skills_with_resources ?? [],
+            timeline: path.timeline ?? { total_hours: 0, total_weeks: 0, max_concurrent_skills: 1, learning_strategy: "sequential", skill_timelines: [] },
+            milestones: path.milestones ?? [],
+            daily_schedule: path.daily_schedule ?? [],
+            status: path.status ?? "not_started",
+            progress_percentage: path.progress_percentage ?? 0,
+          }));
+          setPaths(normalized);
+        } else {
+          setPaths([]);
         }
       } catch (error) {
         console.error('Failed to load learning paths:', error);
-        // Fallback to empty paths for now
+        setPaths([]);
       } finally {
         setLoading(false);
       }
     };
 
     loadLearningPaths();
-  }, []);
+  }, [status, session]);
+
+  const handleGeneratePath = async () => {
+    if (generating) return;
+    setGenerating(true);
+    setGenerationError(null);
+
+    try {
+      const backendUserId = (session as any)?.backendUserId;
+      const userId = backendUserId ? String(backendUserId) : (typeof window !== "undefined" ? localStorage.getItem("user_id") : null) || "demo_user";
+
+      const response = await fetch(`/api/learning/paths/${userId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.detail || err?.message || "Failed to generate path");
+      }
+
+      const data = await response.json();
+      if (data.path) {
+        const normalized = {
+          ...data.path,
+          learning_style: data.path.learning_style ?? {},
+          skill_gaps: data.path.skill_gaps ?? [],
+          skills_with_resources: data.path.skills_with_resources ?? [],
+          timeline: data.path.timeline ?? { total_hours: 0, total_weeks: 0, max_concurrent_skills: 1, learning_strategy: "sequential", skill_timelines: [] },
+          milestones: data.path.milestones ?? [],
+          daily_schedule: data.path.daily_schedule ?? [],
+          status: data.path.status ?? "not_started",
+          progress_percentage: data.path.progress_percentage ?? 0,
+        } as LearningPath;
+
+        setPaths(prev => {
+          const filtered = prev.filter(p => p.id !== normalized.id);
+          return [normalized, ...filtered];
+        });
+        setSelectedPath(normalized);
+        track({ type: "learning_path_open", pathId: data.path.id });
+      }
+    } catch (error) {
+      console.error("Generate learning path error", error);
+      setGenerationError(error instanceof Error ? error.message : "Could not generate learning path");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,343 +162,248 @@ export default function LearningPathsPage() {
     onOpen: (id: number) => void;
     onSave: (id: number) => void;
     onStart: (id: number) => void;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      whileHover={{ scale: 1.02 }}
-      className="bg-white border-4 border-black cursor-pointer hover:border-cyan-400 transition-all"
-      onClick={() => onOpen(path.id)}
-    >
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex-1">
-            <h3 className="font-black text-xl mb-2">{path.targetJob}</h3>
-            <div className="font-mono text-sm text-gray-600 mb-2">{path.targetCompany}</div>
-            <div className={`inline-block px-3 py-1 text-xs font-black ${getStatusColor(path.status)}`}>
-              {path.status.replace('_', ' ').toUpperCase()}
+  }) => {
+    const progress = path.progress_percentage ?? 0;
+    const status = path.status ?? "not_started";
+    const topSkills = path.skills_with_resources.slice(0, 3);
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.1 }}
+        whileHover={{ scale: 1.02 }}
+        className="bg-white border-4 border-black cursor-pointer hover:border-cyan-400 transition-all"
+        onClick={() => onOpen(path.id)}
+      >
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-black text-xl mb-1">{path.title}</h3>
+              <div className="font-mono text-xs text-gray-600 uppercase">{path.learning_strategy} strategy</div>
+            </div>
+            <div className="text-right">
+              <div className={`inline-block px-3 py-1 text-xs font-black ${getStatusColor(status)}`}>
+                {status.replace("_", " ").toUpperCase()}
+              </div>
+              <div className="font-black text-2xl text-cyan-400 mt-2">{progress}%</div>
+              <div className="text-xs font-mono">PROGRESS</div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="font-black text-2xl text-cyan-400">{path.progress}%</div>
-            <div className="text-xs font-mono">COMPLETE</div>
-          </div>
-        </div>
 
-        {/* Progress Bar */}
-        <div className="mb-4">
-          <div className="w-full bg-gray-200 h-4 rounded-full overflow-hidden border-2 border-black">
-            <div 
-              className={`h-full transition-all duration-1000 ${
-                path.status === 'completed' ? 'bg-green-400' : 
-                path.status === 'in_progress' ? 'bg-cyan-400' : 'bg-gray-400'
-              }`}
-              style={{ width: `${path.progress}%` }}
-            ></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border-2 border-black p-3 text-center bg-gray-50">
+              <Clock className="w-4 h-4 mx-auto mb-1 text-gray-600" />
+              <div className="font-black text-lg">{path.timeline.total_hours}h</div>
+              <div className="text-xs font-mono">TOTAL HOURS</div>
+            </div>
+            <div className="border-2 border-black p-3 text-center bg-gray-50">
+              <Calendar className="w-4 h-4 mx-auto mb-1 text-gray-600" />
+              <div className="font-black text-lg">{path.timeline.total_weeks}w</div>
+              <div className="text-xs font-mono">DURATION</div>
+            </div>
+            <div className="border-2 border-black p-3 text-center bg-gray-50">
+              <Target className="w-4 h-4 mx-auto mb-1 text-gray-600" />
+              <div className="font-black text-lg">{path.skill_gaps.length}</div>
+              <div className="text-xs font-mono">SKILL GAPS</div>
+            </div>
+            <div className="border-2 border-black p-3 text-center bg-gray-50">
+              <BarChart3 className="w-4 h-4 mx-auto mb-1 text-gray-600" />
+              <div className="font-black text-lg">{path.learning_style.hours_per_day ?? path.hours_per_day ?? 3}h</div>
+              <div className="text-xs font-mono">PER DAY</div>
+            </div>
           </div>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="text-center">
-            <Clock className="w-4 h-4 mx-auto mb-1 text-gray-600" />
-            <div className="font-black text-lg">{path.totalHours}h</div>
-            <div className="text-xs font-mono">TOTAL HOURS</div>
+          <div>
+            <div className="font-black text-sm mb-2 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              FOCUS STACK
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {topSkills.map((skill) => (
+                <span key={skill.skill} className="bg-yellow-100 text-yellow-800 px-2 py-1 text-xs font-mono border border-yellow-600">
+                  {skill.skill}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="text-center">
-            <Calendar className="w-4 h-4 mx-auto mb-1 text-gray-600" />
-            <div className="font-black text-lg">{path.estimatedWeeks}w</div>
-            <div className="text-xs font-mono">ESTIMATED</div>
-          </div>
-          <div className="text-center">
-            <Target className="w-4 h-4 mx-auto mb-1 text-gray-600" />
-            <div className="font-black text-lg">{path.resources.length}</div>
-            <div className="text-xs font-mono">RESOURCES</div>
-          </div>
-          <div className="text-center">
-            <BarChart3 className="w-4 h-4 mx-auto mb-1 text-gray-600" />
-            <div className="font-black text-lg">{path.hoursPerDay}h</div>
-            <div className="text-xs font-mono">PER DAY</div>
-          </div>
-        </div>
 
-        {/* Skill Gaps */}
-        <div className="mb-4">
-          <div className="font-black text-sm mb-2 flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            SKILL GAPS TO CLOSE:
+          <div className="border-2 border-black p-3 bg-gray-50">
+            <div className="font-black text-sm mb-1">Next up</div>
+            <div className="font-mono text-xs text-gray-700">
+              Day 1 → {path.daily_schedule?.[0]?.skill ?? "--"} · {path.daily_schedule?.[0]?.resource_title ?? "Focus pending"}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {path.skillGaps.map((gap, i) => (
-              <span
-                key={i}
-                className="bg-yellow-100 text-yellow-800 px-2 py-1 text-xs font-mono border border-yellow-600"
-              >
-                {gap}
-              </span>
-            ))}
-          </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <BrutalistButton
-            onClick={(e: any) => {
-              e.stopPropagation();
-              onOpen(path.id);
-            }}
-            variant="secondary"
-            size="sm"
-            icon={<ExternalLink className="w-3 h-3" />}
-          >
-            VIEW PATH
-          </BrutalistButton>
-          {path.status === "not_started" && (
-            <BrutalistButton
-              onClick={(e: any) => {
-                e.stopPropagation();
-                onStart(path.id);
-              }}
-              variant="primary"
-              size="sm"
-              icon={<Play className="w-3 h-3" />}
-            >
-              START LEARNING
-            </BrutalistButton>
-          )}
-          {path.status === "in_progress" && (
+          <div className="flex gap-2">
             <BrutalistButton
               onClick={(e: any) => {
                 e.stopPropagation();
                 onOpen(path.id);
               }}
+              variant="secondary"
+              size="sm"
+              icon={<ExternalLink className="w-3 h-3" />}
+            >
+              VIEW PLAN
+            </BrutalistButton>
+            {status === "not_started" && (
+              <BrutalistButton
+                onClick={(e: any) => {
+                  e.stopPropagation();
+                  onStart(path.id);
+                }}
+                variant="primary"
+                size="sm"
+                icon={<Play className="w-3 h-3" />}
+              >
+                START LEARNING
+              </BrutalistButton>
+            )}
+            {status === "in_progress" && (
+              <BrutalistButton
+                onClick={(e: any) => {
+                  e.stopPropagation();
+                  onOpen(path.id);
+                }}
+                variant="primary"
+                size="sm"
+                icon={<BookOpen className="w-3 h-3" />}
+              >
+                CONTINUE
+              </BrutalistButton>
+            )}
+            <BrutalistButton
+              onClick={(e: any) => {
+                e.stopPropagation();
+                onSave(path.id);
+              }}
               variant="primary"
               size="sm"
-              icon={<BookOpen className="w-3 h-3" />}
+              icon={<Sparkles className="w-3 h-3" />}
             >
-              CONTINUE
+              SAVE PATH
             </BrutalistButton>
-          )}
-          <BrutalistButton
-            onClick={(e: any) => {
-              e.stopPropagation();
-              onSave(path.id);
-            }}
-            variant="primary"
-            size="sm"
-          >
-            SAVE PATH
-          </BrutalistButton>
+          </div>
         </div>
-      </div>
-    </motion.div>
-  );
+      </motion.div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-white text-black">
-      <Guard />
+      {!isAuthenticated && (
+        <div className="border-4 border-black bg-yellow-50 text-black p-5 mb-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="font-black text-sm sm:text-base">LOG IN TO PERSONALIZE YOUR LEARNING MAP</div>
+          <p className="font-mono text-xs sm:text-sm text-gray-700 max-w-3xl">
+            We're showing the demo learning paths right now. Sign in to sync your actual skill gaps and let the agent adapt the plan around your assessment data.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center border-2 border-black bg-black text-cyan-400 px-4 py-2 font-black text-xs tracking-tight hover:bg-white hover:text-black transition-colors"
+          >
+            LOGIN
+          </Link>
+        </div>
+      )}
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto p-6">
-        {loading ? (
-          <div className="text-center py-16">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full mx-auto mb-4"
-            />
-            <h3 className="font-black text-2xl mb-2">LOADING YOUR LEARNING PATHS...</h3>
-            <p className="font-mono text-gray-500">Analyzing skill gaps and generating personalized paths</p>
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="flex items-center gap-4 mb-10">
+          <Link
+            href="/"
+            className="border-4 border-black px-4 py-2 font-black bg-black text-cyan-400 hover:bg-white hover:text-black transition-colors flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            BACK
+          </Link>
+          
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => setActiveTab('paths')}
+              className={`px-4 py-2 font-black border-2 transition-colors ${
+                activeTab === 'paths'
+                  ? 'bg-cyan-400 text-black border-black'
+                  : 'bg-white text-black border-black hover:bg-cyan-400'
+              }`}
+            >
+              PATHS
+            </button>
+            <button
+              onClick={() => setActiveTab('resources')}
+              className={`px-4 py-2 font-black border-2 transition-colors ${
+                activeTab === 'resources'
+                  ? 'bg-cyan-400 text-black border-black'
+                  : 'bg-white text-black border-black hover:bg-cyan-400'
+              }`}
+            >
+              RESOURCES
+            </button>
           </div>
-        ) : (
-          <>
-            {/* Stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"
-            >
-              <div className="bg-black text-white p-4 rotate-1 border-4 border-cyan-400">
-                <div className="text-2xl font-black text-cyan-400">{paths.length}</div>
-                <div className="text-sm font-mono">ACTIVE PATHS</div>
-              </div>
-              <div className="bg-cyan-400 text-black p-4 -rotate-2 border-4 border-black">
-                <div className="text-2xl font-black">
-                  {paths.filter((p: LearningPath) => p.status === 'in_progress').length}
-                </div>
-                <div className="text-sm font-mono">IN PROGRESS</div>
-              </div>
-              <div className="bg-purple-400 text-black p-4 rotate-1 border-4 border-black">
-                <div className="text-2xl font-black">
-                  {paths.filter((p: LearningPath) => p.status === 'completed').length}
-                </div>
-                <div className="text-sm font-mono">COMPLETED</div>
-              </div>
-              <div className="bg-green-400 text-black p-4 -rotate-2 border-4 border-black">
-                <div className="text-2xl font-black">
-                  {Math.round(paths.reduce((acc: number, path: LearningPath) => acc + path.progress, 0) / paths.length)}%
-                </div>
-                <div className="text-sm font-mono">AVG PROGRESS</div>
-              </div>
-            </motion.div>
+        </div>
 
-            {/* Tab Navigation */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="bg-black text-cyan-400 p-1 border-4 border-cyan-400 mb-8"
-            >
-              <div className="flex gap-2">
+        {activeTab === 'paths' && (
+          <div>
+            {loading ? (
+              <div className="text-center py-12 font-mono">Loading paths...</div>
+            ) : paths.length === 0 ? (
+              <div className="border-4 border-black bg-white p-8 text-center space-y-4">
+                <div className="text-2xl font-black mb-2">No learning paths yet</div>
+                <div className="font-mono text-sm text-gray-600">
+                  Generate a hyper-personalized path from your assessment signals.
+                </div>
                 <button
-                  onClick={() => setActiveTab('paths')}
-                  className={`px-6 py-3 font-black text-sm transition-all ${
-                    activeTab === 'paths'
-                      ? 'bg-cyan-400 text-black'
-                      : 'hover:bg-white text-cyan-400'
-                  }`}
+                  onClick={handleGeneratePath}
+                  disabled={generating}
+                  className="inline-flex items-center justify-center gap-2 border-4 border-black bg-black text-cyan-400 px-5 py-3 font-black text-sm tracking-tight hover:bg-white hover:text-black transition-colors disabled:opacity-60"
                 >
-                  LEARNING PATHS
+                  {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  {generating ? "Generating plan..." : "Generate Personalized Path"}
                 </button>
-                <button
-                  onClick={() => setActiveTab('resources')}
-                  className={`px-6 py-3 font-black text-sm transition-all ${
-                    activeTab === 'resources'
-                      ? 'bg-cyan-400 text-black'
-                      : 'hover:bg-white text-cyan-400'
-                  }`}
-                >
-                  RESOURCE LIBRARY
-                </button>
+                {generationError && (
+                  <div className="text-xs font-mono text-red-600">{generationError}</div>
+                )}
               </div>
-            </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {paths.map((path, index) => (
+                  <LearningPathCard
+                    key={path.id}
+                    path={path}
+                    index={index}
+                    onOpen={(id) => setSelectedPath(paths.find(p => p.id === id) ?? null)}
+                    onSave={(id) => {
+                      setSaved(prev => new Set(prev).add(id));
+                      track({ type: "learning_path_save", pathId: id });
+                    }}
+                    onStart={(id) => {
+                      setPaths(prev => prev.map(p => 
+                        p.id === id ? { ...p, status: 'in_progress', progress_percentage: Math.max(p.progress_percentage ?? 0, 5) } : p
+                      ));
+                      track({ type: "learning_path_start", pathId: id });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-            {/* Tab Content */}
-            <AnimatePresence mode="wait">
-              {activeTab === 'paths' && (
-                <motion.div
-                  key="paths"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-6"
-                >
-                  {paths.map((path, index) => (
-                    <LearningPathCard
-                      key={path.id}
-                      path={path}
-                      index={index}
-                      onOpen={(id) => {
-                        const found = paths.find((p) => p.id === id);
-                        if (found) {
-                          setSelectedPath(found);
-                          track({ type: "learning_path_open", pathId: id });
-                        }
-                      }}
-                      onSave={(id) => {
-                        setSaved((prev) => new Set(prev).add(id));
-                        track({ type: "learning_path_save", pathId: id });
-                      }}
-                      onStart={(id) => {
-                        setSaved((prev) => new Set(prev).add(id));
-                        setPaths((prev) =>
-                          prev.map((p) =>
-                            p.id === id
-                              ? { ...p, status: "in_progress" as const, startDate: new Date().toISOString() }
-                              : p
-                          )
-                        );
-                        track({ type: "learning_path_start", pathId: id });
-                      }}
-                    />
-                  ))}
-
-                  {paths.length === 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="text-center py-16 border-4 border-dashed border-gray-300"
-                    >
-                      <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                      <h3 className="font-black text-2xl mb-2">NO LEARNING PATHS YET</h3>
-                      <p className="font-mono text-gray-500 mb-4">
-                        Complete your assessment to get personalized learning paths
-                      </p>
-                      <BrutalistButton
-                        onClick={() => {
-                          track({ type: "learning_path_open", pathId: "empty_assessment_cta" });
-                          window.location.href = "/demo";
-                        }}
-                        icon={<Zap className="w-4 h-4" />}
-                      >
-                        START ASSESSMENT
-                      </BrutalistButton>
-                    </motion.div>
-                  )}
-                </motion.div>
-              )}
-
-              {activeTab === 'resources' && (
-                <motion.div
-                  key="resources"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-6"
-                >
-                  <div className="text-center py-16 border-4 border-dashed border-gray-300">
-                    <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="font-black text-2xl mb-2">RESOURCE LIBRARY</h3>
-                    <p className="font-mono text-gray-500">
-                      Browse all available learning resources
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </>
+        {activeTab === 'resources' && (
+          <div className="border-4 border-black bg-white p-6">
+            <div className="text-xl font-black mb-4">LEARNING RESOURCES</div>
+            <div className="font-mono text-sm text-gray-600">
+              Resource browser coming soon. Select a learning path to see recommended resources.
+            </div>
+          </div>
         )}
       </main>
 
-      <ResourceDrawer
-        open={!!selectedPath}
-        onClose={() => setSelectedPath(null)}
-        title={selectedPath ? selectedPath.targetJob : ""}
-        resources={
-          selectedPath
-            ? selectedPath.resources.map((resource) => ({
-                id: resource.id,
-                type: resource.type,
-                title: resource.title,
-                url: resource.url,
-                duration: resource.duration ? `${resource.duration}h` : undefined,
-                provider: resource.provider,
-              }))
-            : []
-        }
-        onSavePlan={() => {
-          if (!selectedPath) return;
-          track({ type: "learning_path_save", pathId: selectedPath.id });
-          setSelectedPath(null);
-        }}
-        onStartNow={() => {
-          if (!selectedPath) return;
-          setPaths((prev) =>
-            prev.map((p) =>
-                          p.id === selectedPath.id 
-                            ? { ...p, status: "in_progress" as const, startDate: new Date().toISOString() }
-                            : p
-            )
-          );
-          track({ type: "learning_path_start", pathId: selectedPath.id });
-          setSelectedPath(null);
-        }}
-      />
+      {selectedPath && (
+        <PathDetailsDrawer
+          path={selectedPath}
+          onClose={() => setSelectedPath(null)}
+        />
+      )}
     </div>
   );
 }

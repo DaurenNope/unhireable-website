@@ -24,6 +24,12 @@ class User(Base):
     learning_paths = relationship("LearningPath", back_populates="user", cascade="all, delete-orphan")
     resumes = relationship("Resume", back_populates="user", cascade="all, delete-orphan")
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    # Community relationships
+    questions = relationship("Question", back_populates="user", cascade="all, delete-orphan")
+    answers = relationship("Answer", back_populates="user", cascade="all, delete-orphan")
+    cohort_memberships = relationship("CohortMembership", back_populates="user", cascade="all, delete-orphan")
+    cohort_posts = relationship("CohortPost", back_populates="user", cascade="all, delete-orphan")
+    squad_memberships = relationship("SquadMembership", back_populates="user", cascade="all, delete-orphan")
 
 
 class Resume(Base):
@@ -55,7 +61,7 @@ class UserProfile(Base):
     phone = Column(String(50))
     location = Column(String(255))
     linkedin_url = Column(String(500))
-    github_url = Column(String(500))
+    github_url = Column[str](String(500))
     portfolio_url = Column(String(500))
     summary = Column(Text)
     experience_years = Column(Integer)

@@ -4,8 +4,10 @@ from typing import List, Dict, Any
 from app.core.database import get_db
 from app.models.assessment import Assessment, UserSkill
 from app.models.job import Job
+from app.services.hidden_gem_matcher import HiddenGemMatcher
 
 router = APIRouter()
+hidden_gem_matcher = HiddenGemMatcher()
 
 # Mock job database for now
 MOCK_JOBS = [
@@ -440,9 +442,35 @@ async def get_job_matches(user_id: str, db: Session = Depends(get_db)):
     # Sort by match score
     matches.sort(key=lambda x: x["match_score"], reverse=True)
     
+    # Find hidden gems if we have enough data
+    hidden_gems = []
+    personality_profile = None
+    
+    # Try to get personality profile from assessment (if stored)
+    if assessment.career_interests and "personality_profile" in assessment.career_interests:
+        personality_profile = assessment.career_interests.get("personality_profile")
+    
+    # Find hidden gems
+    if matches and len(matches) > 0:
+        try:
+            hidden_gems = hidden_gem_matcher.find_hidden_gems(
+                user_skills,
+                personality_profile or {},
+                matches,
+                {
+                    "experience_level": user_experience,
+                    "career_interests": career_interests,
+                    "location_preferences": answers.get("location_preferences", [])
+                }
+            )
+        except Exception as e:
+            print(f"Warning: Failed to find hidden gems: {e}")
+    
     return {
         "matches": matches,
+        "hidden_gems": hidden_gems,
         "total": len(matches),
+        "hidden_gems_count": len(hidden_gems),
         "has_assessment": True,
         "user_profile": {
             "skills_count": len(user_skills),

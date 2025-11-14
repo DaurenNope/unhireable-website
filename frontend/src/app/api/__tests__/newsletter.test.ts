@@ -1,12 +1,17 @@
+jest.mock("next/server", () => ({
+  NextResponse: {
+    json: (body: any, init?: ResponseInit) => ({
+      status: init?.status ?? 200,
+      json: async () => body,
+    }),
+  },
+}));
+
 import { POST } from "@/app/api/newsletter/route";
 
-function makeRequest(body: any) {
-  return new Request("http://localhost/api/newsletter", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }) as any;
-}
+const makeRequest = (body: any) => ({
+  json: async () => body,
+}) as any;
 
 describe("newsletter API route", () => {
   it("rejects invalid email", async () => {

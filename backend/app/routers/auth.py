@@ -21,6 +21,11 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
+class OAuthRequest(BaseModel):
+    email: str
+    name: str = None
+    provider: str = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -94,3 +99,53 @@ async def get_current_user_info(current_user: User = Depends(get_current_user_se
         "is_active": current_user.is_active,
         "is_verified": current_user.is_verified
     }
+
+@router.post("/oauth", response_model=Token)
+async def oauth_login_or_register(
+    oauth_data: OAuthRequest,
+    db: Session = Depends(get_db)
+):
+    """OAuth login or register - creates user if doesn't exist, returns token"""
+    # Check if user exists
+    db_user = db.query(User).filter(User.email == oauth_data.email).first()
+    
+    if db_user:
+        # User exists, create token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(db_user.id)}, expires_delta=access_token_expires
+        )
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+    else:
+        # Create new user with OAuth
+        # Generate a random password (user will never use it)
+        import secrets
+        random_password = secrets.token_urlsafe(32)
+        hashed_password = get_password_hash(random_password)
+        
+        db_user = User(
+            email=oauth_data.email,
+            hashed_password=hashed_password,
+            full_name=oauth_data.name,
+            is_active=True,
+            is_verified=True  # OAuth emails are verified
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(db_user.id)}, expires_delta=access_token_expires
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }

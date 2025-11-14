@@ -45,6 +45,19 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
     onAnswer(answer);
   };
 
+  // Get question category for styling
+  const category = (question as any).category || "general";
+  const categoryColors: Record<string, string> = {
+    personality: "from-purple-500 to-pink-500",
+    work_style: "from-cyan-500 to-blue-500",
+    communication: "from-green-500 to-emerald-500",
+    values: "from-yellow-500 to-orange-500",
+    preferences: "from-indigo-500 to-purple-500",
+    skills: "from-red-500 to-pink-500",
+    general: "from-gray-500 to-gray-600"
+  };
+  const categoryColor = categoryColors[category] || categoryColors.general;
+
   const renderQuestionInput = () => {
     switch (question.type) {
       case "multi_select":
@@ -53,7 +66,7 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="space-y-3"
+            className="space-y-4"
           >
             {question.options?.map((option, index) => {
               const isSelected = Array.isArray(answer) && answer.includes(option);
@@ -222,6 +235,12 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
         );
 
       case "slider":
+        const questionWithLabels = question as any;
+        const labels = questionWithLabels.labels || {};
+        const minLabel = labels[String(question.min || 1)] || String(question.min || 1);
+        const maxLabel = labels[String(question.max || 10)] || String(question.max || 10);
+        const isHoursQuestion = question.question.toLowerCase().includes("hour");
+        
         return (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -230,15 +249,15 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
             className="space-y-4"
           >
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600 font-medium">{question.min || 1} hour</span>
+              <span className="text-sm text-gray-600 font-medium font-mono">{minLabel}</span>
               <motion.div
                 initial={{ scale: 0.8 }}
                 animate={{ scale: 1 }}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full font-bold text-lg"
+                className="bg-gradient-to-r from-cyan-400 to-purple-400 text-black px-4 py-2 rounded-full font-black text-lg border-2 border-black"
               >
-                {String(answer)}h/day
+                {isHoursQuestion ? `${String(answer)}h/day` : String(answer)}
               </motion.div>
-              <span className="text-sm text-gray-600 font-medium">{question.max || 10} hours</span>
+              <span className="text-sm text-gray-600 font-medium font-mono">{maxLabel}</span>
             </div>
             <Slider
               value={[answer as number]}
@@ -248,11 +267,12 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
               step={1}
               className="w-full h-3"
             />
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Minimal</span>
-              <span>Moderate</span>
-              <span>Intensive</span>
-            </div>
+            {Object.keys(labels).length > 0 && (
+              <div className="flex justify-between text-xs text-gray-500 font-mono mt-2">
+                <span>{minLabel}</span>
+                <span>{maxLabel}</span>
+              </div>
+            )}
           </motion.div>
         );
 
@@ -275,40 +295,62 @@ export function QuestionRenderer({ question, onAnswer }: QuestionRendererProps) 
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-4"
-    >
-      {renderQuestionInput()}
+    <div className="space-y-6">
+      {/* Question Header with Category Badge */}
+      <div className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-3">
+              {(question as any).category && (
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border-2 border-black",
+                  `bg-gradient-to-r ${categoryColor} text-white`
+                )}>
+                  {(question as any).category.replace("_", " ")}
+                </span>
+              )}
+              {question.required && (
+                <span className="px-2 py-1 bg-red-500 text-white text-xs font-black rounded border-2 border-black">
+                  REQUIRED
+                </span>
+              )}
+            </div>
+            <h3 className="text-2xl font-black text-black leading-tight tracking-tight">
+              {question.question}
+            </h3>
+          </div>
+        </div>
+        {question.required && (
+          <p className="text-sm font-mono text-gray-600">This question is required to continue</p>
+        )}
+      </div>
       
+      {/* Question Input */}
+      <div className="pt-2">
+        {renderQuestionInput()}
+      </div>
+      
+      {/* Submit Button */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.3 }}
+        transition={{ delay: 0.2 }}
       >
-        <Button 
+        <Button
           onClick={handleSubmit}
           disabled={question.required && (!answer || (Array.isArray(answer) && answer.length === 0))}
-          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 shadow-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={cn(
+            "w-full py-6 text-lg font-black border-4 border-black shadow-lg transition-all",
+            question.required && (!answer || (Array.isArray(answer) && answer.length === 0))
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-gradient-to-r from-cyan-400 to-purple-400 text-black hover:shadow-2xl hover:scale-[1.02]"
+          )}
         >
-          {question.type === "slider" ? "Continue" : 
-           question.type === "text_input" ? "Submit Answer" :
-           question.type === "skill_selector" ? "Continue" :
-           question.type === "single_choice" ? "Continue" : "Next"}
+          {question.required && (!answer || (Array.isArray(answer) && answer.length === 0))
+            ? "Please answer to continue"
+            : "Continue →"}
         </Button>
-        
-        {question.required && (!answer || (Array.isArray(answer) && answer.length === 0)) && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-sm text-red-500 text-center mt-2"
-          >
-            This question is required. Please provide an answer.
-          </motion.p>
-        )}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

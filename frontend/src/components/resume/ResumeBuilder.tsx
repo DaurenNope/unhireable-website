@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Download, Eye, FileText, Zap, AlertCircle } from "lucide-react";
+import { track } from "../../lib/analytics";
 
 export interface ResumeData {
   personalInfo: {
@@ -34,9 +35,10 @@ export interface ResumeData {
 
 type ResumeBuilderProps = {
   onDownload?: (payload: { data: ResumeData; download: () => void }) => void;
+  onChange?: (data: ResumeData) => void;
 };
 
-export function ResumeBuilder({ onDownload }: ResumeBuilderProps) {
+export function ResumeBuilder({ onDownload, onChange }: ResumeBuilderProps) {
   const [resumeData, setResumeData] = useState<ResumeData>({
     personalInfo: {
       name: "",
@@ -62,6 +64,14 @@ export function ResumeBuilder({ onDownload }: ResumeBuilderProps) {
     if (typeof window === "undefined") return false;
     return !!localStorage.getItem("resume_email");
   });
+
+  useEffect(() => {
+    track({ type: "resume_builder_start" });
+  }, []);
+
+  useEffect(() => {
+    onChange?.(resumeData);
+  }, [resumeData, onChange]);
 
   const addExperience = () => {
     setResumeData(prev => ({
@@ -296,7 +306,10 @@ Soft Skills: ${resumeData.skills.soft.join(', ')}
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                track({ type: "resume_section_complete", section: tab.id });
+              }}
               className={`px-4 py-2 font-mono text-sm transition-all ${
                 activeTab === tab.id
                   ? 'bg-cyan-400 text-black'

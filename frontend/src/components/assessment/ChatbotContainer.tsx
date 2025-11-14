@@ -8,8 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { MessageBubble } from "./MessageBubble";
 import { QuestionRenderer } from "./QuestionRenderer";
 import { TypingIndicator } from "./TypingIndicator";
+import { PersonalityInsightCard } from "./PersonalityInsightCard";
+import { ProgressTracker } from "./ProgressTracker";
 import { AssessmentQuestion, AssessmentAnswer } from "@/types/assessment";
-import { ArrowLeft, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, RotateCcw, Sparkles, CheckCircle2 } from "lucide-react";
 
 interface ChatbotContainerProps {
   userId: string;
@@ -30,6 +32,13 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
   const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [personalityInsights, setPersonalityInsights] = useState<Array<{
+    type: "personality" | "work_style" | "culture_fit" | "skill" | "trajectory";
+    title: string;
+    description: string;
+    traits?: Array<{ trait: string; score: number }>;
+  }>>([]);
+  const [completedSections, setCompletedSections] = useState<string[]>([]);
 
   // Load assessment questions on mount
   useEffect(() => {
@@ -40,101 +49,181 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
     try {
       setIsLoading(true);
       
-      // Mock questions for now - in real app, this would come from API
-      const mockQuestions: AssessmentQuestion[] = [
-        {
-          id: "question_1",
-          type: "multi_select",
-          question: "What kind of code bullshit are you into? Pick your poison.",
-          required: true,
-          options: [
-            "Frontend (Making pixels dance)",
-            "Backend (Database wizardry)", 
-            "Full Stack (Gluten-free development)",
-            "DevOps (Herding digital cats)",
-            "Data Science (Excel on steroids)",
-            "Mobile (Tiny screen nightmares)",
-            "UI/UX (Making pretty rectangles)",
-            "Product Management (Corporate babysitting)"
-          ]
-        },
-        {
-          id: "question_2",
-          type: "single_choice",
-          question: "How long have you been surviving in this industry?",
-          required: true,
-          options: [
-            "Baby Dev (Just learned Git exists)",
-            "Mid-tier Coder (Impostor syndrome expert)", 
-            "Senior Dev (Forgets how to print('Hello World'))",
-            "Lead (Meetings about meetings)"
-          ]
-        },
-        {
-          id: "question_3",
-          type: "skill_selector",
-          question: "Rate your bullshit tolerance... I mean, technical skills:",
-          required: true,
-          skills: ["JavaScript", "Python", "React", "Node.js", "TypeScript", "SQL"],
-          proficiency_levels: ["WTF is this?", "I can Google it", "Actually useful", "Wizard level"]
-        },
-        {
-          id: "question_4",
-          type: "slider",
-          question: "How many hours per day can you sacrifice to escape unemployment?",
-          required: true,
-          min: 1,
-          max: 10,
-          default: 5
-        },
-        {
-          id: "question_5",
-          type: "text_input",
-          question: "What's your master plan for world domination... I mean, career goals?",
-          required: false,
-          placeholder: "Don't worry, we won't judge your absurd ambitions..."
-        }
-      ];
+      // Start assessment first
+      const startResponse = await fetch('/api/assessments/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
       
-      setQuestions(mockQuestions);
+      if (!startResponse.ok) {
+        console.warn('Failed to start assessment, using fallback');
+        // Fallback to mock questions if backend fails
+        await loadMockQuestions();
+        return;
+      }
       
-      // Start assessment
-      await startAssessment();
+      const startData = await startResponse.json();
+      const assessmentId = startData.assessment_id;
+      setAnswers(prev => ({ ...prev, assessment_id: assessmentId }));
       
-      // Show first question
+      // Fetch real questions from backend
+      const questionsResponse = await fetch('/api/assessments/questions');
+      if (!questionsResponse.ok) {
+        console.warn('Failed to fetch questions, using fallback');
+        await loadMockQuestions();
+        return;
+      }
+      
+      const questionsData = await questionsResponse.json();
+      const backendQuestions = questionsData.questions || [];
+      
+      // Map backend questions to frontend format
+      const mappedQuestions: AssessmentQuestion[] = backendQuestions.map((q: any) => {
+        const baseQuestion: any = {
+          id: q.id,
+          type: q.type,
+          question: q.question,
+          required: q.required !== false,
+        };
+        
+        if (q.options) baseQuestion.options = q.options;
+        if (q.skills) baseQuestion.skills = q.skills;
+        if (q.proficiency_levels) baseQuestion.proficiency_levels = q.proficiency_levels;
+        if (q.min !== undefined) baseQuestion.min = q.min;
+        if (q.max !== undefined) baseQuestion.max = q.max;
+        if (q.default !== undefined) baseQuestion.default = q.default;
+        if (q.placeholder) baseQuestion.placeholder = q.placeholder;
+        
+        return baseQuestion;
+      });
+      
+      setQuestions(mappedQuestions);
+      
+      // Show first question with enhanced intro
       setIsTyping(true);
       setTimeout(() => {
         setMessages([{
           id: "1",
           type: "bot",
-          content: "🤖 ALRIGHT LISTEN UP. Let's find you a job that doesn't completely suck. No corporate bullshit, I promise.",
+          content: "🤖 ALRIGHT LISTEN UP. This isn't your typical assessment. We're going deep. I'm going to ask you questions about your personality, your vibes, your preferences - not just what skills you have. Be honest. No one's judging.",
           timestamp: new Date()
         }, {
-          id: "2", 
+          id: "2",
           type: "bot",
-          content: mockQuestions[0],
+          content: "This will take about 15-20 minutes, but it's worth it. I'll find you jobs that actually match who you are, not just what you can code. Ready?",
+          timestamp: new Date()
+        }, {
+          id: "3", 
+          type: "bot",
+          content: mappedQuestions[0],
           timestamp: new Date()
         }]);
         setIsTyping(false);
-      }, 1500);
+      }, 2000);
+      
+      // Track assessment start
+      try {
+        const { track } = await import("../../lib/analytics");
+        if (userId && typeof userId === 'string') {
+          track({ 
+            type: "assessment_start", 
+            userId: userId as string, 
+            assessment_id: typeof assessmentId === 'string' || typeof assessmentId === 'number' ? assessmentId : undefined 
+          });
+        }
+      } catch (trackError) {
+        // Silently fail tracking
+        console.debug('Failed to track assessment start:', trackError);
+      }
+      
     } catch (error) {
       console.error('Failed to load questions:', error);
+      // Fallback to mock questions
+      await loadMockQuestions();
     } finally {
       setIsLoading(false);
     }
   };
-
-  const startAssessment = async () => {
-    try {
-      // Mock API call
-      console.log('Starting assessment for user:', userId);
-      // Track assessment start
-      const { track } = await import("../../lib/analytics");
-      track({ type: "assessment_start", userId });
-    } catch (error) {
-      console.error('Failed to start assessment:', error);
-    }
+  
+  const loadMockQuestions = async () => {
+    // Fallback mock questions with fun tone
+    const mockQuestions: AssessmentQuestion[] = [
+      {
+        id: "career_interests",
+        type: "multi_select",
+        question: "What kind of code bullshit are you into? Pick your poison.",
+        required: true,
+        options: [
+          "Frontend (Making pixels dance)",
+          "Backend (Database wizardry)", 
+          "Full Stack (Gluten-free development)",
+          "DevOps (Herding digital cats)",
+          "Data Science (Excel on steroids)",
+          "Mobile (Tiny screen nightmares)",
+          "UI/UX (Making pretty rectangles)",
+          "Product Management (Corporate babysitting)"
+        ]
+      },
+      {
+        id: "experience_level",
+        type: "single_choice",
+        question: "How long have you been surviving in this industry?",
+        required: true,
+        options: [
+          "Baby Dev (Just learned Git exists)",
+          "Mid-tier Coder (Impostor syndrome expert)", 
+          "Senior Dev (Forgets how to print('Hello World'))",
+          "Lead (Meetings about meetings)"
+        ]
+      },
+      {
+        id: "technical_skills",
+        type: "skill_selector",
+        question: "Rate your bullshit tolerance... I mean, technical skills:",
+        required: true,
+        skills: ["JavaScript", "Python", "React", "Node.js", "TypeScript", "SQL"],
+        proficiency_levels: ["WTF is this?", "I can Google it", "Actually useful", "Wizard level"]
+      },
+      {
+        id: "time_availability",
+        type: "slider",
+        question: "How many hours per day can you sacrifice to escape unemployment?",
+        required: true,
+        min: 1,
+        max: 10,
+        default: 5
+      },
+      {
+        id: "career_goals",
+        type: "text_input",
+        question: "What's your master plan for world domination... I mean, career goals?",
+        required: false,
+        placeholder: "Don't worry, we won't judge your absurd ambitions..."
+      }
+    ];
+    
+    setQuestions(mockQuestions);
+    
+    // Show first question
+    setIsTyping(true);
+    setTimeout(() => {
+      setMessages([{
+        id: "1",
+        type: "bot",
+        content: "🤖 ALRIGHT LISTEN UP. Let's find you a job that doesn't completely suck. No corporate bullshit, I promise.",
+        timestamp: new Date()
+      }, {
+        id: "2", 
+        type: "bot",
+        content: mockQuestions[0],
+        timestamp: new Date()
+      }]);
+      setIsTyping(false);
+    }, 1500);
   };
+
+  // startAssessment is now called from loadQuestions
 
   const handleAnswer = async (questionId: string, answer: AssessmentAnswer) => {
     // Add user message
@@ -182,12 +271,55 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
           timestamp: Date;
         }> = [];
         
+        // Add real-time personality insights if available
+        if (result.personality_analysis) {
+          const personality = result.personality_analysis;
+          
+          // Add personality insights
+          if (personality.insights && personality.insights.length > 0) {
+            personality.insights.forEach((insight: string, index: number) => {
+              setTimeout(() => {
+                setMessages(prev => [...prev, {
+                  id: `personality-${Date.now() + index}`,
+                  type: "bot" as const,
+                  content: insight,
+                  timestamp: new Date()
+                }]);
+              }, index * 400);
+            });
+          }
+          
+          // Add personality profile card after a few answers
+          if (personality.personality_profile && Object.keys(answers).length >= 3) {
+            setTimeout(() => {
+              const profile = personality.personality_profile;
+              // Add insight card
+              setPersonalityInsights(prev => [...prev, {
+                type: "personality" as const,
+                title: `Your Personality: ${profile.type}`,
+                description: profile.summary || `Based on your responses, you're showing strong ${profile.type} traits. This helps us understand how you work best and what environments suit you.`,
+                traits: profile.top_traits?.slice(0, 3) || []
+              }]);
+              
+              // Also add as message
+              const profileMessage = `🧠 **PERSONALITY INSIGHT**\n\nYou're showing strong ${profile.type} traits. This is helping us understand your work style and find the perfect match for you.`;
+              
+              setMessages(prev => [...prev, {
+                id: `profile-${Date.now()}`,
+                type: "bot" as const,
+                content: profileMessage,
+                timestamp: new Date()
+              }]);
+            }, 2000);
+          }
+        }
+        
         // Add skill insights if available
         if (result.skill_insights && result.skill_insights.length > 0) {
           result.skill_insights.forEach((insight: string, index: number) => {
             setTimeout(() => {
               setMessages(prev => [...prev, {
-                id: (Date.now() + index).toString(),
+                id: `skill-${Date.now() + index}`,
                 type: "bot" as const,
                 content: `💡 ${insight}`,
                 timestamp: new Date()
@@ -203,7 +335,7 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
           
           setTimeout(() => {
             setMessages(prev => [...prev, {
-              id: (Date.now() + 100).toString(),
+              id: `trajectory-${Date.now()}`,
               type: "bot" as const,
               content: trajectoryMessage,
               timestamp: new Date()
@@ -227,39 +359,43 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
         
         // Handle standard next question
         if (result.next_standard_question) {
-          // Add contextual message based on question progression
-          let contextMessage = "";
           const nextQuestion = result.next_standard_question;
           
-          if (nextQuestion.id === "experience_level") {
-            contextMessage = "Interesting choices! Now let's talk about your battle scars... I mean, experience.";
-          } else if (nextQuestion.id === "technical_skills") {
-            contextMessage = "Time for the moment of truth - show me your tech stack!";
-          } else if (nextQuestion.id === "soft_skills") {
-            contextMessage = "Tech skills are great, but can you talk to humans without starting a flame war?";
-          } else if (nextQuestion.id === "time_availability") {
-            contextMessage = "How much of your life are you willing to sacrifice for career glory?";
-          } else if (nextQuestion.id === "learning_preferences") {
-            contextMessage = "Everyone learns differently. What's your style?";
-          } else if (nextQuestion.id === "career_goals") {
-            contextMessage = "Tell me your master plan for world domination... or at least a promotion.";
-          } else if (nextQuestion.id === "location_preferences") {
-            contextMessage = "Final question - where do you want to sell your soul to capitalism?";
-          }
-          
-          if (contextMessage) {
+          // Add answer acknowledgment if available (shows we're listening)
+          if (result.answer_acknowledgment) {
             messagesToAdd.push({
-              id: Date.now().toString(),
+              id: `ack-${Date.now()}`,
               type: "bot" as const,
-              content: contextMessage,
+              content: result.answer_acknowledgment,
               timestamp: new Date()
             });
           }
           
+          // Add encouragement message if available
+          if (result.encouragement_message) {
+            messagesToAdd.push({
+              id: `encourage-${Date.now()}`,
+              type: "bot" as const,
+              content: result.encouragement_message,
+              timestamp: new Date()
+            });
+          }
+          
+          // Add contextual message before next question (from backend)
+          if (result.contextual_message) {
+            messagesToAdd.push({
+              id: `context-${Date.now()}`,
+              type: "bot" as const,
+              content: result.contextual_message,
+              timestamp: new Date()
+            });
+          }
+          
+          // Add the actual question
           messagesToAdd.push({
             id: (Date.now() + 1).toString(),
             type: "bot" as const,
-            content: result.next_standard_question,
+            content: nextQuestion,
             timestamp: new Date()
           });
           
@@ -313,8 +449,24 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
 
   const completeAssessment = async () => {
     try {
-      // Mock API call
-      console.log('Completing assessment with answers:', answers);
+      // Complete assessment with backend
+      const response = await fetch('/api/assessments/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          all_answers: answers
+        }),
+      });
+      
+      let assessmentId = answers?.assessment_id || 'demo';
+      
+      if (response.ok) {
+        const data = await response.json();
+        assessmentId = data.assessment_id || assessmentId;
+      } else {
+        console.warn('Failed to complete assessment with backend, continuing anyway');
+      }
       
       // Show completion message
       const completionMessage = {
@@ -326,12 +478,37 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
       
       setMessages(prev => [...prev, completionMessage]);
       setIsComplete(true);
+      
       // Track assessment completion
-      const { track } = await import("../../lib/analytics");
-      track({ type: "assessment_complete", userId });
-      onAssessmentComplete(answers);
+      try {
+        const { track } = await import("../../lib/analytics");
+        if (userId && typeof userId === 'string') {
+          track({ 
+            type: "assessment_complete", 
+            userId: userId as string, 
+            assessment_id: typeof assessmentId === 'string' || typeof assessmentId === 'number' ? assessmentId : undefined 
+          });
+        }
+      } catch (trackError) {
+        // Silently fail tracking
+        console.debug('Failed to track assessment complete:', trackError);
+      }
+      
+      // Call onAssessmentComplete callback
+      if (onAssessmentComplete) {
+        onAssessmentComplete({ ...answers, assessment_id: assessmentId });
+      }
+      
+      // Redirect to results page after a short delay
+      setTimeout(() => {
+        window.location.href = `/results?assessment_id=${assessmentId}`;
+      }, 3000);
     } catch (error) {
       console.error('Failed to complete assessment:', error);
+      // Still redirect even if API fails
+      setTimeout(() => {
+        window.location.href = `/results?assessment_id=${answers?.assessment_id || 'demo'}`;
+      }, 3000);
     }
   };
 
@@ -426,10 +603,21 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
       
       {/* Chat Messages */}
       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-y-auto space-y-4 p-6 bg-gray-50 min-h-0">
+        <div className="flex-1 overflow-y-auto space-y-4 p-6 bg-gradient-to-b from-white via-gray-50 to-white min-h-0">
           <AnimatePresence>
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
+            ))}
+          </AnimatePresence>
+          
+          {/* Personality Insight Cards */}
+          <AnimatePresence>
+            {personalityInsights.map((insight, index) => (
+              <PersonalityInsightCard
+                key={`insight-${index}`}
+                insight={insight}
+                onDismiss={() => setPersonalityInsights(prev => prev.filter((_, i) => i !== index))}
+              />
             ))}
           </AnimatePresence>
           
@@ -443,12 +631,20 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="border-t-4 border-black bg-white p-6 flex-shrink-0 overflow-y-auto max-h-[50%]"
+            className="border-t-4 border-black bg-white p-8 flex-shrink-0 overflow-y-auto max-h-[50%] shadow-2xl"
           >
-            <QuestionRenderer
-              question={questions[currentQuestionIndex]}
-              onAnswer={(answer: AssessmentAnswer) => handleAnswer(questions[currentQuestionIndex].id, answer)}
-            />
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+                <span className="font-mono text-xs text-gray-500 uppercase tracking-wider">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </span>
+              </div>
+              <QuestionRenderer
+                question={questions[currentQuestionIndex]}
+                onAnswer={(answer: AssessmentAnswer) => handleAnswer(questions[currentQuestionIndex].id, answer)}
+              />
+            </div>
           </motion.div>
         )}
         
@@ -456,28 +652,48 @@ export function ChatbotContainer({ userId, onAssessmentComplete }: ChatbotContai
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="border-t-4 border-black bg-white p-6 flex-shrink-0"
+            className="border-t-4 border-black bg-gradient-to-br from-green-50 to-emerald-50 p-8 flex-shrink-0"
           >
-            <div className="text-center space-y-4">
-              <div className="text-6xl">💀</div>
-              <h3 className="text-3xl font-black text-black">SURVIVED THE TORTURE!</h3>
-              <p className="font-mono text-gray-600 text-lg">
-                Your career profile is ready. Let's find you a job that actually pays.
-              </p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => window.location.href = '/jobs'}
-                  className="bg-cyan-400 text-black px-6 py-3 font-black border-2 border-black hover:bg-white transition-colors"
+            <div className="text-center space-y-6 max-w-2xl mx-auto">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                className="text-7xl"
+              >
+                ✨
+              </motion.div>
+              <motion.h3
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl font-black text-black"
+              >
+                Assessment Complete!
+              </motion.h3>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="font-mono text-gray-700 text-lg leading-relaxed"
+              >
+                We've analyzed your personality, work style, and preferences. Your personalized career profile is ready.
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex gap-4 justify-center pt-4"
+              >
+                <motion.button
+                  onClick={() => window.location.href = `/results?assessment_id=${answers?.assessment_id || 'demo'}`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-cyan-400 to-purple-400 text-black px-8 py-4 font-black border-4 border-black hover:shadow-2xl transition-all text-lg"
                 >
-                  SHOW ME THE MONEY
-                </button>
-                <button
-                  onClick={restartAssessment}
-                  className="bg-black text-cyan-400 px-6 py-3 font-black border-2 border-cyan-400 hover:bg-cyan-400 hover:text-black transition-colors"
-                >
-                  DO THIS AGAIN
-                </button>
-              </div>
+                  VIEW MY RESULTS →
+                </motion.button>
+              </motion.div>
             </div>
           </motion.div>
         )}

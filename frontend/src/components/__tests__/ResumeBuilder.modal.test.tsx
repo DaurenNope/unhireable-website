@@ -15,6 +15,17 @@ describe("ResumeBuilder email modal + newsletter flow", () => {
       key: jest.fn(),
       length: 0,
     };
+
+    window.open = jest.fn(() => ({
+      document: {
+        open: jest.fn(),
+        write: jest.fn(),
+        close: jest.fn(),
+      },
+    })) as any;
+
+    global.URL.createObjectURL = jest.fn(() => "blob:mock-url");
+    global.URL.revokeObjectURL = jest.fn();
   });
 
   it("prompts for email on first download and submits", async () => {

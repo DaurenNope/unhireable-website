@@ -12,10 +12,10 @@ export default function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // MVP navigation - focus on the assessment-to-resume loop
   const navLinks = [
-    { href: "/matches", label: "MATCHES" },
-    { href: "/demo", label: "TEST" },
-    { href: "/learning-paths", label: "LEARN" },
+    { href: "/demo", label: "ASSESSMENT" },
+    { href: "/results", label: "RESULTS" },
     { href: "/resume", label: "RESUME" },
   ];
 
@@ -68,6 +68,7 @@ export default function Header() {
               {/* Desktop Auth Button - First */}
               {session ? (
                 <motion.button
+                  onClick={() => signOut({ callbackUrl: "/" })}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   whileHover={{ scale: 1.05, rotate: -1 }}

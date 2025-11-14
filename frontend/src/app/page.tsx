@@ -213,145 +213,96 @@ export default function HomePage() {
                 </div>
               </motion.div>
 
-              {/* Right Column - Market Protection Cards */}
+              {/* Right Column - Full-Width Dynamic Stats */}
             <motion.div
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 1, delay: 1.5 }}
-              className="hidden lg:block relative h-full min-h-[600px]"
+              className="hidden lg:block relative h-full min-h-[600px] w-full"
             >
-              <div className="relative w-full h-full bg-gradient-to-b from-gray-50 to-white overflow-y-auto overflow-x-hidden p-8 space-y-6">
-                {/* Card 1: Market Uncertainty */}
-                <motion.div
-                  className="bg-white border-l-4 border-red-400 p-5 shadow-sm hover:shadow-md transition-shadow"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 2 }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Market Reality</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Layoffs 2024</span>
-                      <span className="text-3xl font-black text-red-500">200K+</span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Avg Search</span>
-                      <span className="text-2xl font-black text-gray-700">4.5 mo</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-4 leading-relaxed">
-                      Markets shift. Industries pivot. One layoff can change everything.
-                    </p>
-                  </div>
-                </motion.div>
-
-                {/* Card 2: Traditional Search */}
-                <motion.div
-                  className="bg-white border-l-4 border-gray-300 p-5 shadow-sm hover:shadow-md transition-shadow"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 2.3 }}
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-gray-400"></div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Traditional Way</h3>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Applications</span>
-                      <span className="text-3xl font-black text-gray-600">100+</span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Response Rate</span>
-                      <span className="text-2xl font-black text-gray-700">12%</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-4 leading-relaxed">
-                      Manual applications. Low success. Time-consuming.
-                    </p>
-                  </div>
-                </motion.div>
-
-                {/* Card 3: AI Protection - Featured */}
-                <motion.div
-                  className="bg-gradient-to-br from-cyan-50 to-white border-l-4 border-cyan-400 p-5 shadow-md hover:shadow-lg transition-all relative overflow-hidden"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 2.6 }}
-                >
-                  {/* Subtle accent */}
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/10 rounded-full -mr-12 -mt-12"></div>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-                      <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">AI Protection</h3>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs font-mono text-gray-500 uppercase">Auto-Apply</span>
-                        <span className="text-3xl font-black text-cyan-600">24/7</span>
+              <div className="relative w-full h-full flex flex-col p-6 space-y-0">
+                {/* Ultra Minimalist Full-Length Stats */}
+                {[
+                  {
+                    label: "Market Reality",
+                    stat: "200K+",
+                    subtext: "Layoffs 2024",
+                    color: "text-red-600",
+                  },
+                  {
+                    label: "Traditional Way",
+                    stat: "12%",
+                    subtext: "Response Rate • 4.5 Months",
+                    color: "text-gray-800",
+                  },
+                  {
+                    label: "AI Protection",
+                    stat: "89%",
+                    subtext: "Match Rate • 21 Days • 24/7",
+                    color: "text-cyan-600",
+                    highlight: true,
+                  },
+                  {
+                    label: "Auto-Apply",
+                    stat: "24/7",
+                    subtext: "Always Ready • Always Applying",
+                    color: "text-purple-600",
+                  },
+                ].map((item, index) => (
+                  <motion.div
+                    key={item.label}
+                    className="relative w-full flex-1 min-h-[140px] flex items-center"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: 2 + index * 0.1,
+                      ease: "easeOut"
+                    }}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      {/* Left: Large Stat */}
+                      <div className="flex-shrink-0">
+                        <motion.div
+                          className={`text-8xl font-black ${item.color} leading-none`}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ 
+                            duration: 0.6, 
+                            delay: 2.2 + index * 0.1,
+                            ease: "easeOut"
+                          }}
+                        >
+                          {item.stat}
+                        </motion.div>
                       </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs font-mono text-gray-500 uppercase">Match Rate</span>
-                        <span className="text-2xl font-black text-cyan-600">89%</span>
+                      
+                      {/* Right: Label and Subtext */}
+                      <div className="flex-1 pl-12 text-right space-y-1">
+                        <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">
+                          {item.label}
+                        </div>
+                        <div className="text-xs font-mono text-gray-400">
+                          {item.subtext}
+                        </div>
                       </div>
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs font-mono text-gray-500 uppercase">Time to Hire</span>
-                        <span className="text-2xl font-black text-cyan-600">21 days</span>
-                      </div>
-                      <p className="text-xs text-gray-700 font-medium mt-4 leading-relaxed">
-                        Always ready. Always applying. Always matching.
-                      </p>
                     </div>
-                  </div>
-                </motion.div>
+                  </motion.div>
+                ))}
 
-                {/* Card 4: Market Resilience */}
+                {/* Bottom Minimalist Message */}
                 <motion.div
-                  className="bg-white border-l-4 border-purple-400 p-5 shadow-sm hover:shadow-md transition-shadow"
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 2.9 }}
+                  className="relative w-full pt-6 mt-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 3.2 }}
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-purple-400"></div>
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Resilience</h3>
+                  <div className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">
+                    Always Ready
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Opportunities</span>
-                      <span className="text-2xl font-black text-purple-600">Always</span>
-                    </div>
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xs font-mono text-gray-500 uppercase">Adaptation</span>
-                      <span className="text-2xl font-black text-purple-600">Real-time</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mt-4 leading-relaxed">
-                      Stay ahead of market changes. Your AI adapts instantly.
-                    </p>
-                  </div>
-                </motion.div>
-
-                {/* Card 5: Call to Action */}
-                <motion.div
-                  className="bg-black text-white p-5 shadow-lg"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 3.2 }}
-                >
-                  <h3 className="text-sm font-black text-cyan-400 uppercase tracking-wider mb-4">Be Ready. Always.</h3>
-                  <p className="text-xs text-gray-300 leading-relaxed mb-4">
-                    Layoffs happen. Markets crash. Industries pivot.
+                  <p className="text-sm font-mono text-gray-600 leading-relaxed">
+                    Markets shift. Industries pivot. Your AI adapts instantly.
                   </p>
-                  <p className="text-xs text-white leading-relaxed mb-4">
-                    With AI on your side, you're always ready. Your agent works 24/7, applies to opportunities, 
-                    and matches you with roles—even when you're sleeping.
-                  </p>
-                  <div className="flex items-baseline gap-3 pt-3 border-t border-gray-800">
-                    <span className="text-4xl font-black text-cyan-400">89%</span>
-                    <span className="text-xs font-mono text-gray-400">vs 12% traditional</span>
-                  </div>
                 </motion.div>
               </div>
             </motion.div>

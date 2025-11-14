@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, getProviders } from "next-auth/react";
 import { motion } from "framer-motion";
 import { ArrowRight, Mail, Lock, User, AlertCircle } from "lucide-react";
 
@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
+  const [providers, setProviders] = useState<Record<string, any> | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,13 +42,21 @@ export default function RegisterPage() {
     }
   };
 
+  useEffect(() => {
+    const loadProviders = async () => {
+      const res = await getProviders();
+      setProviders(res);
+    };
+    loadProviders();
+  }, []);
+
   const handleOAuthRegister = async (provider: string) => {
     setError("");
     setLoading(provider);
     try {
       await signIn(provider, { callbackUrl: "/" });
     } catch (err) {
-      setError(`Failed to sign in with ${provider}`);
+      setError(`Failed to sign in with ${provider}. Please check your configuration.`);
       setLoading(null);
     }
   };
@@ -98,42 +107,48 @@ export default function RegisterPage() {
               {"\u003e"} Join the neural career system
             </p>
 
-            {/* OAuth Buttons */}
-            <div className="grid gap-3 mb-6">
-              <motion.button
-                type="button"
-                disabled={!!loading}
-                onClick={() => handleOAuthRegister("google")}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full border-2 border-black bg-white text-black px-4 py-3 font-black text-xs sm:text-sm uppercase tracking-tight hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading === "google" ? (
-                  <>LOADING...</>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
-                      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 31.7 29.3 35 24 35c-7 0-12.8-5.8-12.8-12.8S17 9.5 24 9.5c3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.4 3.1 29.5 1 24 1 11.9 1 2 10.9 2 23s9.9 22 22 22 22-9.9 22-22c0-1.7-.2-3.3-.4-4.5z"/>
-                      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 18.9 13.5 24 13.5c3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.4 3.1 29.5 1 24 1 15.3 1 7.7 5.6 3.2 12.2l3.1 2.5z"/>
-                      <path fill="#4CAF50" d="M24 45c5.2 0 10-1.9 13.7-5.1l-6.3-5.2c-2.1 1.4-4.8 2.3-7.5 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8.8 40.5 15.9 45 24 45z"/>
-                      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.7 3.7-5.8 6.5-11.3 6.5-6.2 0-11.5-4.3-12.7-10l-6.6 5.1C8.8 40.5 15.9 45 24 45c12.1 0 22-9.9 22-22 0-1.7-.2-3.3-.4-4.5z"/>
-                    </svg>
-                    CONTINUE WITH GOOGLE
-                  </>
+            {/* OAuth Buttons - Only show if providers are configured */}
+            {providers && Object.keys(providers).filter(p => p !== "credentials").length > 0 && (
+              <div className="grid gap-3 mb-6">
+                {providers.google && (
+                  <motion.button
+                    type="button"
+                    disabled={!!loading}
+                    onClick={() => handleOAuthRegister("google")}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full border-2 border-black bg-white text-black px-4 py-3 font-black text-xs sm:text-sm uppercase tracking-tight hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading === "google" ? (
+                      <>LOADING...</>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
+                          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 31.7 29.3 35 24 35c-7 0-12.8-5.8-12.8-12.8S17 9.5 24 9.5c3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.4 3.1 29.5 1 24 1 11.9 1 2 10.9 2 23s9.9 22 22 22 22-9.9 22-22c0-1.7-.2-3.3-.4-4.5z"/>
+                          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 18.9 13.5 24 13.5c3.3 0 6.3 1.2 8.6 3.2l5.7-5.7C34.4 3.1 29.5 1 24 1 15.3 1 7.7 5.6 3.2 12.2l3.1 2.5z"/>
+                          <path fill="#4CAF50" d="M24 45c5.2 0 10-1.9 13.7-5.1l-6.3-5.2c-2.1 1.4-4.8 2.3-7.5 2.3-5.2 0-9.6-3.3-11.2-7.9l-6.6 5.1C8.8 40.5 15.9 45 24 45z"/>
+                          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.7 3.7-5.8 6.5-11.3 6.5-6.2 0-11.5-4.3-12.7-10l-6.6 5.1C8.8 40.5 15.9 45 24 45c12.1 0 22-9.9 22-22 0-1.7-.2-3.3-.4-4.5z"/>
+                        </svg>
+                        CONTINUE WITH GOOGLE
+                      </>
+                    )}
+                  </motion.button>
                 )}
-              </motion.button>
 
-              <motion.button
-                type="button"
-                disabled={!!loading}
-                onClick={() => handleOAuthRegister("github")}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full border-2 border-black bg-white text-black px-4 py-3 font-black text-xs sm:text-sm uppercase tracking-tight hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading === "github" ? "LOADING..." : "CONTINUE WITH GITHUB"}
-              </motion.button>
-            </div>
+                {providers.github && (
+                  <motion.button
+                    type="button"
+                    disabled={!!loading}
+                    onClick={() => handleOAuthRegister("github")}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full border-2 border-black bg-white text-black px-4 py-3 font-black text-xs sm:text-sm uppercase tracking-tight hover:bg-black hover:text-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading === "github" ? "LOADING..." : "CONTINUE WITH GITHUB"}
+                  </motion.button>
+                )}
+              </div>
+            )}
 
             {/* Divider */}
             <div className="relative my-6">

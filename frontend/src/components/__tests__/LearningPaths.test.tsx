@@ -2,6 +2,14 @@ import "@testing-library/jest-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import LearningPathsPage from "@/app/learning-paths/page";
 
+jest.mock("next-auth/react", () => ({
+  useSession: () => ({ data: null, status: "unauthenticated" }),
+}));
+
+jest.mock("next/navigation", () => ({
+  usePathname: () => "/learning-paths",
+}));
+
 describe("LearningPathsPage", () => {
   beforeEach(() => {
     // Mock fetch to return empty paths
@@ -26,7 +34,7 @@ describe("LearningPathsPage", () => {
     render(<LearningPathsPage />);
     expect(screen.getByText(/LEARNING PATHS/i)).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText(/NO LEARNING PATHS YET/i)).toBeInTheDocument();
+      expect(screen.getByText(/No learning paths yet/i)).toBeInTheDocument();
     });
   });
 });

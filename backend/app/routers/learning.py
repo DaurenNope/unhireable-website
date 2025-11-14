@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+
 from app.core.database import get_db
-from app.models.assessment import Assessment, UserSkill
+from app.models.assessment import Assessment, UserSkill, LearningPath, LearningProgress, LearningResource
 from app.models.job import Job
 
 router = APIRouter()
@@ -357,6 +359,55 @@ def generate_milestones(skill_timelines: List[Dict]) -> List[Dict[str, Any]]:
     milestones.sort(key=lambda x: x["week"])
     return milestones
 
+def create_daily_schedule(skills_with_resources: List[Dict[str, Any]], hours_per_day: int) -> List[Dict[str, Any]]:
+    """Break the learning plan into daily actions."""
+    if hours_per_day <= 0:
+        hours_per_day = 3
+
+    schedule: List[Dict[str, Any]] = []
+    day_counter = 1
+    current_date = datetime.utcnow()
+
+    for skill_block in skills_with_resources:
+        primary_resource = skill_block["resources"][0]
+        remaining_hours = primary_resource.get("duration_hours", 8)
+        focused_hours = max(1, min(hours_per_day, remaining_hours))
+
+        while remaining_hours > 0:
+            session_hours = min(focused_hours, remaining_hours)
+            schedule.append({
+                "day": day_counter,
+                "date": (current_date + timedelta(days=day_counter - 1)).isoformat(),
+                "skill": skill_block["skill"],
+                "resource_id": primary_resource.get("id"),
+                "resource_title": primary_resource.get("title"),
+                "focus": f"{skill_block['skill']} deep work",
+                "session_intent": primary_resource.get("description", "Practice core concepts"),
+                "hours": session_hours,
+                "impact": skill_block.get("estimated_impact", 5),
+            })
+            remaining_hours -= session_hours
+            day_counter += 1
+
+    # Provide at least two weeks of actions for UX, even if plan is shorter
+    if len(schedule) < 14:
+        schedule.extend([
+            {
+                "day": len(schedule) + offset + 1,
+                "date": (current_date + timedelta(days=len(schedule) + offset)).isoformat(),
+                "skill": "Portfolio",
+                "resource_id": None,
+                "resource_title": "Ship a case study",
+                "focus": "Apply what you learned in a tangible artifact",
+                "session_intent": "Translate new skills into a shareable project",
+                "hours": min(3, hours_per_day),
+                "impact": 7,
+            }
+            for offset in range(14 - len(schedule))
+        ])
+
+    return schedule
+
 @router.get("/resources")
 async def get_learning_resources(
     skill: Optional[str] = None,
@@ -393,23 +444,28 @@ async def get_learning_paths(user_id: str, db: Session = Depends(get_db)):
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail=f"Invalid user_id: {user_id}")
     
-    # TODO: Implement actual database retrieval
-    from app.models.assessment import LearningPath
-    paths = db.query(LearningPath).filter(LearningPath.user_id == user_id_int).all()
-    
-    return {
-        "paths": [
-            {
-                "id": path.id,
-                "title": f"Learning Path {path.id}",
-                "status": path.status,
-                "progress_percentage": path.progress_percentage,
-                "estimated_completion_weeks": path.estimated_completion_weeks,
-                "created_at": path.created_at.isoformat() if path.created_at else None
-            }
-            for path in paths
-        ] if paths else []
-    }
+    paths = db.query(LearningPath).filter(LearningPath.user_id == user_id_int).order_by(LearningPath.created_at.desc()).all()
+
+    serialized_paths = []
+    for path in paths:
+        resource_payload = path.resources or {}
+        serialized_paths.append({
+            "id": path.id,
+            "title": resource_payload.get("title") or f"Learning Path {path.id}",
+            "status": path.status,
+            "progress_percentage": path.progress_percentage,
+            "estimated_completion_weeks": path.estimated_completion_weeks,
+            "hours_per_day": path.hours_per_day,
+            "skill_gaps": path.skill_gaps or [],
+            "learning_style": resource_payload.get("learning_style", {}),
+            "skills_with_resources": resource_payload.get("skills_with_resources", []),
+            "timeline": resource_payload.get("timeline", {}),
+            "milestones": resource_payload.get("milestones", []),
+            "daily_schedule": resource_payload.get("daily_schedule", []),
+            "created_at": path.created_at.isoformat() if path.created_at else None,
+        })
+
+    return {"paths": serialized_paths}
 
 @router.post("/paths/{user_id}/generate")
 async def generate_learning_path(
@@ -468,41 +524,177 @@ async def generate_learning_path(
     # Generate milestones
     milestones = generate_milestones(timeline["skill_timelines"])
     
-    # Create learning path
-    learning_path = {
-        "id": 1,  # Mock ID
+    daily_schedule = create_daily_schedule(skills_with_resources, learning_style["hours_per_day"])
+
+    # Persist learning path to database
+    existing_path = db.query(LearningPath).filter(LearningPath.user_id == user_id_int).first()
+
+    payload = {
         "title": f"Learning Path for {target_job_id or 'Skill Development'}",
+        "skills_with_resources": skills_with_resources,
+        "timeline": timeline,
+        "milestones": milestones,
+        "learning_style": learning_style,
+        "daily_schedule": daily_schedule,
+    }
+
+    if existing_path:
+        existing_path.skill_gaps = skill_gaps
+        existing_path.resources = payload
+        existing_path.estimated_completion_weeks = timeline["total_weeks"]
+        existing_path.hours_per_day = learning_style["hours_per_day"]
+        existing_path.status = "not_started"
+        existing_path.progress_percentage = 0
+        learning_path_record = existing_path
+    else:
+        learning_path_record = LearningPath(
+            user_id=user_id_int,
+            target_job_id=target_job_id,
+            skill_gaps=skill_gaps,
+            resources=payload,
+            estimated_completion_weeks=timeline["total_weeks"],
+            hours_per_day=learning_style["hours_per_day"],
+            status="not_started",
+            progress_percentage=0,
+        )
+        db.add(learning_path_record)
+
+    db.commit()
+    db.refresh(learning_path_record)
+
+    learning_path = {
+        "id": learning_path_record.id,
+        "title": payload["title"],
         "skill_gaps": skill_gaps,
         "skills_with_resources": skills_with_resources,
         "timeline": timeline,
         "milestones": milestones,
         "learning_style": learning_style,
+        "daily_schedule": daily_schedule,
         "estimated_completion_weeks": timeline["total_weeks"],
         "total_hours": timeline["total_hours"],
         "learning_strategy": timeline["learning_strategy"],
         "status": "not_started",
         "progress_percentage": 0,
-        "created_at": "2024-01-15T10:00:00Z"
+        "hours_per_day": learning_style["hours_per_day"],
+        "created_at": learning_path_record.created_at.isoformat() if learning_path_record.created_at else None,
     }
-    
+
     return {
         "path": learning_path,
         "success": True,
-        "message": f"Generated learning path with {len(skills_with_resources)} skills"
+        "message": f"Generated learning path with {len(skills_with_resources)} skills",
     }
 
 @router.get("/paths/{path_id}/progress")
 async def get_learning_progress(path_id: int, db: Session = Depends(get_db)):
     """Get progress for a learning path"""
-    # TODO: Implement actual progress tracking
+    
+    # Get the learning path
+    learning_path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+    if not learning_path:
+        raise HTTPException(status_code=404, detail="Learning path not found")
+    
+    # Get all progress records for this path
+    progress_records = db.query(LearningProgress).filter(
+        LearningProgress.learning_path_id == path_id
+    ).all()
+    
+    # Get all resources in the path
+    resources = learning_path.resources or {}
+    total_resources = sum(len(skill_resources) for skill_resources in resources.values()) if resources else 0
+    
+    # Calculate completed resources
+    completed_resources = [
+        p for p in progress_records 
+        if p.status == 'completed' or p.completion_percentage >= 100
+    ]
+    completed_count = len(completed_resources)
+    
+    # Calculate overall progress percentage
+    if total_resources > 0 and progress_records:
+        # Calculate average completion percentage from all progress records
+        total_completion = sum(p.completion_percentage for p in progress_records)
+        progress_percentage = int(total_completion / len(progress_records))
+    elif total_resources > 0:
+        # No progress records yet, so 0%
+        progress_percentage = 0
+    else:
+        # Fallback to stored progress if no resources
+        progress_percentage = learning_path.progress_percentage or 0
+    
+    # Update learning path progress percentage
+    learning_path.progress_percentage = progress_percentage
+    if progress_percentage > 0 and learning_path.status == 'not_started':
+        learning_path.status = 'in_progress'
+    if progress_percentage >= 100:
+        learning_path.status = 'completed'
+    db.commit()
+    
+    # Find current skill (first incomplete resource)
+    current_skill = None
+    next_milestone = None
+    if resources:
+        for skill_name, skill_resources in resources.items():
+            if isinstance(skill_resources, list):
+                for resource in skill_resources:
+                    resource_id = resource.get('resource_id') if isinstance(resource, dict) else None
+                    if resource_id:
+                        resource_progress = db.query(LearningProgress).filter(
+                            LearningProgress.learning_path_id == path_id,
+                            LearningProgress.resource_id == resource_id
+                        ).first()
+                        if not resource_progress or resource_progress.completion_percentage < 100:
+                            current_skill = skill_name
+                            resource_data = db.query(LearningResource).filter(LearningResource.id == resource_id).first()
+                            if resource_data:
+                                next_milestone = f"Complete {resource_data.title or skill_name}"
+                            break
+                if current_skill:
+                    break
+    
+    # Estimate completion time
+    estimated_completion = None
+    if learning_path.estimated_completion_weeks and progress_percentage > 0:
+        weeks_remaining = learning_path.estimated_completion_weeks * (100 - progress_percentage) / 100
+        if weeks_remaining > 0:
+            estimated_completion = f"{int(weeks_remaining)} weeks remaining"
+        else:
+            estimated_completion = "Almost complete"
+    elif learning_path.estimated_completion_weeks:
+        estimated_completion = f"{learning_path.estimated_completion_weeks} weeks remaining"
+    
+    # Count skills
+    skills_completed = 0
+    total_skills = len(resources) if resources else 0
+    if resources:
+        for skill_name, skill_resources in resources.items():
+            if isinstance(skill_resources, list):
+                all_completed = True
+                for resource in skill_resources:
+                    resource_id = resource.get('resource_id') if isinstance(resource, dict) else None
+                    if resource_id:
+                        resource_progress = db.query(LearningProgress).filter(
+                            LearningProgress.learning_path_id == path_id,
+                            LearningProgress.resource_id == resource_id
+                        ).first()
+                        if not resource_progress or resource_progress.completion_percentage < 100:
+                            all_completed = False
+                            break
+                if all_completed and skill_resources:
+                    skills_completed += 1
+    
     return {
         "path_id": path_id,
-        "progress_percentage": 35,
-        "skills_completed": 1,
-        "total_skills": 3,
-        "current_skill": "TypeScript",
-        "next_milestone": "Complete TypeScript Foundation",
-        "estimated_completion": "5 weeks remaining"
+        "progress_percentage": progress_percentage,
+        "skills_completed": skills_completed,
+        "total_skills": total_skills,
+        "resources_completed": completed_count,
+        "total_resources": total_resources,
+        "current_skill": current_skill,
+        "next_milestone": next_milestone,
+        "estimated_completion": estimated_completion,
+        "status": learning_path.status
     }
 
 @router.post("/paths/{path_id}/progress")
@@ -513,11 +705,90 @@ async def update_learning_progress(
     db: Session = Depends(get_db)
 ):
     """Update progress for a learning resource"""
-    # TODO: Implement actual progress updates
+    
+    # Validate progress value
+    if progress < 0 or progress > 100:
+        raise HTTPException(status_code=400, detail="Progress must be between 0 and 100")
+    
+    # Verify learning path exists
+    learning_path = db.query(LearningPath).filter(LearningPath.id == path_id).first()
+    if not learning_path:
+        raise HTTPException(status_code=404, detail="Learning path not found")
+    
+    # Verify resource exists
+    resource = db.query(LearningResource).filter(LearningResource.id == resource_id).first()
+    if not resource:
+        raise HTTPException(status_code=404, detail="Learning resource not found")
+    
+    # Get or create progress record
+    progress_record = db.query(LearningProgress).filter(
+        LearningProgress.learning_path_id == path_id,
+        LearningProgress.resource_id == resource_id
+    ).first()
+    
+    if not progress_record:
+        # Create new progress record
+        progress_record = LearningProgress(
+            learning_path_id=path_id,
+            resource_id=resource_id,
+            status='in_progress' if progress < 100 else 'completed',
+            completion_percentage=progress,
+            started_at=datetime.utcnow() if progress > 0 else None
+        )
+        db.add(progress_record)
+    else:
+        # Update existing progress record
+        progress_record.completion_percentage = progress
+        if progress == 0:
+            progress_record.status = 'not_started'
+        elif progress < 100:
+            progress_record.status = 'in_progress'
+            if not progress_record.started_at:
+                progress_record.started_at = datetime.utcnow()
+        else:
+            progress_record.status = 'completed'
+            if not progress_record.completed_at:
+                progress_record.completed_at = datetime.utcnow()
+            if not progress_record.started_at:
+                progress_record.started_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(progress_record)
+    
+    # Update learning path overall progress
+    progress_records = db.query(LearningProgress).filter(
+        LearningProgress.learning_path_id == path_id
+    ).all()
+    
+    if progress_records:
+        total_resources = len(progress_records)
+        completed_resources = len([p for p in progress_records if p.completion_percentage >= 100])
+        total_completion = sum(p.completion_percentage for p in progress_records)
+        overall_progress = int(total_completion / total_resources) if total_resources > 0 else 0
+        
+        learning_path.progress_percentage = overall_progress
+        
+        # Update status
+        if overall_progress == 0:
+            learning_path.status = 'not_started'
+        elif overall_progress < 100:
+            learning_path.status = 'in_progress'
+        else:
+            learning_path.status = 'completed'
+        
+        db.commit()
+    
     return {
         "success": True,
         "message": "Progress updated successfully",
-        "new_progress": progress
+        "progress": {
+            "resource_id": resource_id,
+            "completion_percentage": progress,
+            "status": progress_record.status,
+            "started_at": progress_record.started_at.isoformat() if progress_record.started_at else None,
+            "completed_at": progress_record.completed_at.isoformat() if progress_record.completed_at else None
+        },
+        "path_progress": learning_path.progress_percentage
     }
 
 @router.get("/insights/{user_id}")

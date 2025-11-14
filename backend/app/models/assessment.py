@@ -16,6 +16,14 @@ class Assessment(Base):
     career_goals = Column(Text)
     location_preferences = Column(MutableList.as_mutable(JSON), default=list)  # Text array stored as JSON
     assessment_completed_at = Column(DateTime(timezone=True))
+    
+    # AI-Powered Enhancement Fields
+    skill_trajectory_predictions = Column(MutableDict.as_mutable(JSON), default=dict)  # Predictive analytics
+    market_readiness_score = Column(Integer, default=0)  # 0-100 score
+    learning_velocity = Column(Integer, default=0)  # Skills learned per month
+    career_transition_probability = Column(MutableDict.as_mutable(JSON), default=dict)  # Career path probabilities
+    ai_generated_insights = Column(MutableList.as_mutable(JSON), default=list)  # AI insights
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -34,6 +42,15 @@ class UserSkill(Base):
     years_of_experience = Column(Integer)
     self_assessed = Column(Boolean, default=True)
     verified = Column(Boolean, default=False)
+    
+    # AI-Powered Enhancement Fields
+    market_demand_score = Column(Integer, default=0)  # 0-100 market demand
+    salary_impact_score = Column(Integer, default=0)  # Salary increase potential
+    automation_risk_score = Column(Integer, default=0)  # 0-100 automation risk
+    future_growth_potential = Column(Integer, default=0)  # 0-100 growth potential
+    learning_time_remaining = Column(Integer, default=0)  # Estimated hours to mastery
+    skill_validation_sources = Column(MutableList.as_mutable(JSON), default=list)  # GitHub, certs, etc.
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Add relationship
@@ -73,6 +90,16 @@ class LearningResource(Base):
     rating = Column(Integer)  # Decimal stored as integer (0-50 for 0-5.0 rating)
     completion_time_weeks = Column(Integer)
     prerequisites = Column(MutableList.as_mutable(JSON), default=list)  # Text array stored as JSON
+    
+    # AI-Powered Enhancement Fields
+    micro_learning_segments = Column(MutableList.as_mutable(JSON), default=list)  # 15-30 min sessions
+    adaptive_difficulty = Column(Boolean, default=False)  # Adjusts to user progress
+    learning_style_compatibility = Column(MutableDict.as_mutable(JSON), default=dict)  # Visual, auditory, etc.
+    real_world_project_integration = Column(Boolean, default=False)  # Connects to actual projects
+    peer_learning_enabled = Column(Boolean, default=False)  # Collaborative learning
+    ai_tutor_support = Column(Boolean, default=False)  # AI-powered assistance
+    effectiveness_score = Column(Integer, default=0)  # 0-100 based on user outcomes
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Add relationships

@@ -8,11 +8,19 @@ from app.services.assessment_intelligence import (
     validate_skill_combination,
     analyze_career_trajectory
 )
+from app.services.personality_analyzer import PersonalityAnalyzer
+from app.services.contextual_messages import (
+    get_contextual_message,
+    get_encouragement_message,
+    get_answer_acknowledgment
+)
 import json
 
 class AssessmentService:
     def __init__(self, db: Session):
         self.db = db
+        # Store personality analyzers per user session
+        self._personality_analyzers: Dict[int, PersonalityAnalyzer] = {}
 
     def start_assessment(self, user_id: str) -> Dict[str, Any]:
         """Start a new assessment or resume existing one"""
@@ -109,11 +117,146 @@ class AssessmentService:
         
         self.db.commit()
         
+        # Auto-generate learning path after assessment completion
+        try:
+            self._auto_generate_learning_path(user_id_int, all_answers)
+        except Exception as e:
+            # Don't fail assessment completion if learning path generation fails
+            print(f"Warning: Failed to auto-generate learning path: {e}")
+        
+        # Get final personality profile if analyzer exists
+        final_personality_profile = None
+        if user_id_int in self._personality_analyzers:
+            final_personality_profile = self._personality_analyzers[user_id_int].get_full_profile()
+            # Clean up analyzer after completion
+            del self._personality_analyzers[user_id_int]
+        
         return {
             "message": "Assessment completed successfully",
             "assessment_id": assessment.id,
-            "next_steps": ["job_matching", "resume_generation", "learning_path"]
+            "next_steps": ["job_matching", "resume_generation", "learning_path"],
+            "learning_path_generated": True,
+            "final_personality_profile": final_personality_profile
         }
+    
+    def _auto_generate_learning_path(self, user_id: int, all_answers: Dict[str, Any]) -> None:
+        """Auto-generate a learning path after assessment completion"""
+        # Import here to avoid circular dependencies
+        from app.models.learning import LearningPath
+        from app.routers.learning import (
+            select_best_resources,
+            calculate_learning_timeline,
+            generate_milestones,
+            create_daily_schedule,
+            prioritize_skill_gaps
+        )
+        
+        try:
+            # Get user skills
+            user_skills_data = self.db.query(UserSkill).filter(UserSkill.user_id == user_id).all()
+            user_skills = {skill.skill_name: skill.proficiency_level for skill in user_skills_data}
+            
+            # Get career interests to determine skill gaps
+            career_interests = all_answers.get("career_interests", [])
+            
+            # Determine skill gaps based on career interests
+            # For Frontend: React, TypeScript, Next.js
+            # For Backend: Python, Node.js, Go
+            # For Full Stack: All of the above
+            required_skills_map = {
+                "Frontend Developer": ["React", "TypeScript", "Next.js", "CSS", "HTML"],
+                "Backend Developer": ["Python", "Node.js", "SQL", "AWS"],
+                "Full Stack Developer": ["React", "TypeScript", "Node.js", "Python", "SQL", "AWS"],
+                "DevOps Engineer": ["AWS", "Docker", "Kubernetes", "Terraform"],
+                "Data Scientist": ["Python", "SQL", "Machine Learning", "Data Science"],
+                "Machine Learning Engineer": ["Python", "Machine Learning", "TensorFlow", "AWS"]
+            }
+            
+            # Get required skills for career interests
+            required_skills = set()
+            for interest in career_interests:
+                if interest in required_skills_map:
+                    required_skills.update(required_skills_map[interest])
+            
+            # If no specific interests, use common skills
+            if not required_skills:
+                required_skills = {"React", "TypeScript", "Node.js", "Python", "SQL"}
+            
+            # Find skill gaps
+            user_skill_names = set(user_skills.keys())
+            skill_gaps_list = [skill for skill in required_skills if skill not in user_skill_names]
+            
+            if not skill_gaps_list:
+                # User has all required skills, skip learning path generation
+                return
+            
+            # Analyze learning style - inline version since function expects nested dict
+            learning_preferences = all_answers.get("learning_preferences", [])
+            hours_per_day = all_answers.get("time_availability", 5)
+            learning_style = {
+                "preferences": learning_preferences,
+                "hours_per_day": hours_per_day,
+                "preferred_pace": "intensive" if hours_per_day >= 7 else "moderate" if hours_per_day >= 3 else "relaxed",
+                "format_preference": "hands_on" if "Online Courses" in learning_preferences else "self_paced",
+                "budget_conscious": "Free resources" in learning_preferences if isinstance(learning_preferences, list) else False
+            }
+            
+            # Prioritize skill gaps
+            prioritized_gaps = prioritize_skill_gaps(skill_gaps_list, user_skills, "")
+            
+            # Select resources for each skill gap
+            skills_with_resources = []
+            for gap in prioritized_gaps[:10]:  # Top 10 skill gaps
+                skill = gap["skill"]
+                best_resources = select_best_resources(skill, learning_style)
+                
+                if best_resources:
+                    skills_with_resources.append({
+                        "skill": skill,
+                        "priority": gap.get("priority", "medium"),
+                        "urgency_score": gap.get("urgency_score", 50),
+                        "resources": best_resources,
+                        "estimated_impact": gap.get("estimated_impact", 5),
+                        "dependencies_met": gap.get("prerequisites_met", True)
+                    })
+            
+            if not skills_with_resources:
+                return
+            
+            # Calculate learning timeline
+            timeline = calculate_learning_timeline(skills_with_resources, hours_per_day)
+            
+            # Generate milestones
+            milestones = generate_milestones(timeline.get("skill_timelines", []))
+            
+            # Create daily schedule
+            daily_schedule = create_daily_schedule(skills_with_resources, hours_per_day)
+            
+            # Create learning path
+            learning_path = LearningPath(
+                user_id=user_id,
+                skill_gaps=skill_gaps_list[:10],
+                resources={
+                    "title": f"Learning Path for {', '.join(career_interests[:2]) if career_interests else 'Career Development'}",
+                    "skills_with_resources": skills_with_resources,
+                    "timeline": timeline,
+                    "milestones": milestones,
+                    "learning_style": learning_style,
+                    "daily_schedule": daily_schedule,
+                },
+                estimated_completion_weeks=timeline.get("total_weeks", 8),
+                hours_per_day=hours_per_day,
+                status="not_started",
+                progress_percentage=0
+            )
+            
+            self.db.add(learning_path)
+            self.db.commit()
+        except Exception as e:
+            # Log error but don't fail assessment completion
+            import traceback
+            print(f"Warning: Failed to auto-generate learning path: {e}")
+            print(traceback.format_exc())
 
     def _get_current_question(self, assessment: Assessment) -> int:
         """Get current question number for an assessment"""
@@ -122,101 +265,9 @@ class AssessmentService:
         return len(assessment.career_interests)
 
     def _get_assessment_questions(self) -> List[Dict[str, Any]]:
-        """Get all assessment questions"""
-        # This would typically come from a database or config file
-        return [
-            {
-                "id": "career_interests",
-                "type": "multi_select",
-                "question": "Which career paths interest you the most?",
-                "options": [
-                    "Frontend Developer",
-                    "Backend Developer", 
-                    "Full Stack Developer",
-                    "DevOps Engineer",
-                    "Data Scientist",
-                    "Machine Learning Engineer",
-                    "Product Manager",
-                    "UI/UX Designer",
-                    "Mobile Developer",
-                    "Cybersecurity Specialist"
-                ],
-                "required": True
-            },
-            {
-                "id": "experience_level",
-                "type": "single_choice",
-                "question": "What is your experience level?",
-                "options": [
-                    "Entry Level (0-2 years)",
-                    "Mid Level (2-5 years)",
-                    "Senior Level (5+ years)",
-                    "Lead/Principal Level"
-                ],
-                "required": True
-            },
-            {
-                "id": "technical_skills",
-                "type": "skill_selector",
-                "question": "What are your technical skills? (Select all that apply and rate your proficiency)",
-                "skills": [
-                    "JavaScript", "TypeScript", "Python", "Java", "C#", "Go", "Rust",
-                    "React", "Vue.js", "Angular", "Node.js", "Django", "Flask",
-                    "HTML", "CSS", "TailwindCSS", "SASS", "Bootstrap",
-                    "SQL", "MongoDB", "PostgreSQL", "Redis",
-                    "AWS", "Azure", "Google Cloud", "Docker", "Kubernetes",
-                    "Git", "Linux", "Agile/Scrum"
-                ],
-                "proficiency_levels": ["Beginner", "Intermediate", "Advanced", "Expert"],
-                "required": True
-            },
-            {
-                "id": "soft_skills",
-                "type": "multi_select",
-                "question": "What are your soft skills?",
-                "options": [
-                    "Communication", "Leadership", "Problem Solving", "Teamwork",
-                    "Time Management", "Critical Thinking", "Creativity", "Adaptability",
-                    "Project Management", "Mentoring", "Public Speaking", "Negotiation"
-                ],
-                "required": False
-            },
-            {
-                "id": "time_availability",
-                "type": "slider",
-                "question": "How many hours per day can you dedicate to learning?",
-                "min": 1,
-                "max": 10,
-                "default": 5,
-                "required": True
-            },
-            {
-                "id": "learning_preferences",
-                "type": "multi_select",
-                "question": "How do you prefer to learn?",
-                "options": [
-                    "Online Courses", "Local Classes", "Bootcamps", "Self-study",
-                    "Certifications", "Workshops", "Mentorship", "Video Tutorials"
-                ],
-                "required": True
-            },
-            {
-                "id": "career_goals",
-                "type": "text_input",
-                "question": "Describe your career goals (optional)",
-                "placeholder": "What do you want to achieve in your career?",
-                "required": False
-            },
-            {
-                "id": "location_preferences",
-                "type": "multi_select",
-                "question": "What are your location preferences?",
-                "options": [
-                    "Remote", "On-site", "Hybrid"
-                ],
-                "required": True
-            }
-        ]
+        """Get all assessment questions - now using deep psychological questions"""
+        from app.services.deep_assessment_questions import get_deep_assessment_questions
+        return get_deep_assessment_questions()
 
     def _generate_followup_question(self, current_question_id: str, answer: Any, assessment_context: Dict) -> Optional[Dict[str, Any]]:
         """Generate dynamic follow-up questions based on user answers"""
@@ -330,6 +381,19 @@ class AssessmentService:
         assessment.career_interests[question_id] = answer
         self.db.commit()
         
+        # Get or create personality analyzer for this user
+        if user_id_int not in self._personality_analyzers:
+            self._personality_analyzers[user_id_int] = PersonalityAnalyzer()
+        
+        personality_analyzer = self._personality_analyzers[user_id_int]
+        
+        # Real-time personality analysis
+        personality_analysis = personality_analyzer.analyze_answer(
+            question_id,
+            answer,
+            assessment.career_interests
+        )
+        
         # Generate intelligent follow-up
         followup_question = get_intelligent_followup_question(
             question_id,
@@ -352,8 +416,13 @@ class AssessmentService:
             "answer_saved": True,
             "followup_question": followup_question,
             "skill_insights": skill_insights,
-            "trajectory_analysis": trajectory_analysis
+            "trajectory_analysis": trajectory_analysis,
+            "personality_analysis": personality_analysis  # Add real-time personality insights
         }
+        
+        # Add final personality profile if assessment is complete
+        if response.get("assessment_complete"):
+            response["final_personality_profile"] = personality_analyzer.get_full_profile()
         
         # If no follow-up, get next standard question
         if not followup_question:
@@ -362,9 +431,37 @@ class AssessmentService:
             questions = self._get_assessment_questions()
             
             if next_index < len(questions):
-                response["next_standard_question"] = questions[next_index]
+                next_question = questions[next_index]
+                response["next_standard_question"] = next_question
                 response["question_number"] = next_index + 1
                 response["total_questions"] = len(questions)
+                
+                # Add contextual message before next question
+                contextual_msg = get_contextual_message(
+                    next_question.get("id", ""),
+                    assessment.career_interests or {},
+                    next_index + 1,
+                    len(questions)
+                )
+                if contextual_msg:
+                    response["contextual_message"] = contextual_msg
+                
+                # Add encouragement message
+                encouragement = get_encouragement_message(
+                    next_index + 1,
+                    len(questions)
+                )
+                if encouragement:
+                    response["encouragement_message"] = encouragement
+                
+                # Add answer acknowledgment if applicable
+                acknowledgment = get_answer_acknowledgment(
+                    question_id,
+                    answer,
+                    assessment.career_interests or {}
+                )
+                if acknowledgment:
+                    response["answer_acknowledgment"] = acknowledgment
             else:
                 response["assessment_complete"] = True
         
