@@ -3,68 +3,63 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-const socialLinks = [
-  { 
-    name: "𝕏", 
-    href: "https://twitter.com/unhireable",
-    label: "Twitter"
-  },
-  { 
-    name: "in", 
-    href: "https://linkedin.com/company/unhireable",
-    label: "LinkedIn"
-  },
-  { 
-    name: "📷", 
-    href: "https://instagram.com/unhireable",
-    label: "Instagram"
-  }
-];
-
 export function Footer() {
   return (
-    <footer className="relative py-8 px-4 sm:px-6 md:px-8 lg:px-16 bg-black text-white border-t-4 border-black">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-4">
-          {/* Logo */}
+    <footer className="border-t-4 border-black bg-white px-8 md:px-16 py-12">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-sm font-mono">
+        <div>
           <motion.div
-            className="text-xl sm:text-2xl font-black tracking-tighter"
+            className="text-xl font-black mb-3"
             whileHover={{ scale: 1.05 }}
           >
-            <Link href="/">
-              <span className="bg-white text-black px-2">UN</span>
-              <span className="text-white">HIREABLE</span>
-            </Link>
+            <Link href="/">UNHIREABLE</Link>
           </motion.div>
-          
-          {/* Social Media Icons */}
-          <div className="flex items-center gap-3">
-            {socialLinks.map((social, index) => (
-              <motion.a
-                key={social.label}
-                href={social.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-white text-black border-2 border-white flex items-center justify-center text-base font-black hover:bg-gray-200 hover:text-black transition-all duration-300"
-                whileHover={{ scale: 1.15, rotate: 12 }}
-                whileTap={{ scale: 0.95 }}
-                title={social.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                {social.name}
-              </motion.a>
-            ))}
+          <p className="text-gray-600 leading-relaxed">
+            Autonomous job search system. Assessment now, desktop agent next.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <div className="font-black mb-2 uppercase tracking-wider">Product</div>
+          <Link href="/demo" className="block hover:text-cyan-400 transition-colors">
+            Assessment
+          </Link>
+          <Link href="/results" className="block hover:text-cyan-400 transition-colors">
+            Results
+          </Link>
+          <Link href="/resume" className="block hover:text-cyan-400 transition-colors">
+            Resume Lab
+          </Link>
+          <Link href="/waitlist" className="block hover:text-cyan-400 transition-colors">
+            Waitlist
+          </Link>
+        </div>
+        <div className="space-y-2">
+          <div className="font-black mb-2 uppercase tracking-wider">Connect</div>
+          <a
+            href="mailto:hello@unhireable.ai"
+            className="block hover:text-cyan-400 transition-colors"
+          >
+            Contact
+          </a>
+          <a
+            href="https://twitter.com/unhireable"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block hover:text-cyan-400 transition-colors"
+          >
+            𝕏 Twitter
+          </a>
+          <a
+            href="https://linkedin.com/company/unhireable"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block hover:text-cyan-400 transition-colors"
+          >
+            LinkedIn
+          </a>
+          <div className="text-gray-500 text-xs mt-4">
+            © 2024 Unhireable
           </div>
-          
-          {/* Copyright */}
-          <motion.div
-            className="font-mono text-xs sm:text-sm text-white/80"
-            whileHover={{ scale: 1.05 }}
-          >
-            © 2024 // NEURAL CAREER SYNTHESIS
-          </motion.div>
         </div>
       </div>
     </footer>
